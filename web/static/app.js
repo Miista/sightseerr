@@ -6,7 +6,7 @@
 // here is only for the person.
 
 const $ = (id) => document.getElementById(id);
-const IMG = 'https://image.tmdb.org/t/p/';
+const IMG = '/img/'; // TMDb images, served (and kept) by spor: the page makes no outside requests
 const view = $('view');
 
 let me = null;        // /api/me
@@ -155,15 +155,25 @@ function gridSkeleton(n, extra) {
   for (let i = 0; i < n; i++) {
     g.append(h('div', { class: 'card' },
       h('div', { class: 'poster skel' }),
-      h('div', { class: 'skel line' }),
-      h('div', { class: 'skel line short' }),
-      extra ? h('div', { class: 'skel line', style: 'height:30px' }) : null));
+      h('div', { class: 'card-text' }, h('div', { class: 'skel line' }), h('div', { class: 'skel line short' })),
+      extra ? h('div', { class: 'skel line', style: 'height:42px;width:100%;border-radius:14px' }) : null));
   }
   return g;
 }
 
+// The small mono label above each page's title.
+const KICKERS = { Discover: 'Fresh for you', Library: 'Your shelf', Blocked: 'Not interested' };
+
 function header(title, lede) {
-  return [h('h1', { text: title }), lede ? h('p', { class: 'lede' }, lede) : null];
+  return [h('div', { class: 'page-head' },
+    KICKERS[title] ? h('div', { class: 'kicker', text: KICKERS[title] }) : null,
+    h('h1', { text: title }),
+    lede ? h('p', { class: 'lede' }, lede) : null)];
+}
+
+// cardText is a card's words under the poster: the title, then one line.
+function cardText(title, line) {
+  return h('div', { class: 'card-text' }, h('div', { class: 'name', text: title }), line);
 }
 
 // ---------- Context menu (long-press on touch, right-click elsewhere) ----------
@@ -230,7 +240,7 @@ function blockItem(t, card) {
         parent?.insertBefore(card, next);
         return toast(err.message, { error: true });
       }
-      toast(`Blocked ${t.title}`, {
+      toast(`${t.title} blocked`, {
         undo: async () => {
           try {
             await api('POST', '/api/unblock', { type: t.type, id: t.id });
@@ -252,7 +262,7 @@ function toast(msg, opts = {}) {
     opts.undo ? h('button', { text: 'Undo', onclick: () => { el.hidden = true; opts.undo(); } }) : null);
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, opts.undo ? 6000 : 4000);
+  toastTimer = setTimeout(() => { el.hidden = true; }, opts.undo ? 4500 : 4000);
 }
 
 // ---------- Discover ----------
@@ -281,8 +291,7 @@ async function renderWall(seq) {
     const b = c.because;
     const card = h('a', { class: 'card', href: titleHref(c, [keyOf(b)]) },
       posterEl(c),
-      h('div', { class: 'name', text: c.title }),
-      h('div', { class: 'because' }, `Because you ${b.reason} `, h('b', { text: b.title || 'something' })));
+      cardText(c.title, h('div', { class: 'because' }, `Because you ${b.reason} `, h('b', { text: b.title || 'something' }))));
     pressable(card, c, [blockItem(c, card)]);
     grid.append(card);
   }
@@ -395,7 +404,7 @@ async function renderTitle(seq, type, id, viaRaw) {
       const poster = posterEl(p);
       const state = p.current ? ['here', 'You\'re here'] : PART_STATES[p.state];
       if (state) poster.append(h('span', { class: `state ${state[0]}`, text: state[1] }));
-      const kids = [poster, h('div', { class: 'name', text: p.title }), h('div', { class: 'meta', text: p.year || 'Coming' })];
+      const kids = [poster, cardText(p.title, h('div', { class: 'meta', text: p.year || 'Coming' }))];
       grid.append(p.current
         ? h('div', { class: 'card current' }, ...kids)
         : h('a', { class: 'card', href: titleHref(p, next) }, ...kids));
@@ -428,7 +437,7 @@ async function renderTitle(seq, type, id, viaRaw) {
     const next = [...via, keyOf(t)];
     for (const r of d.recommendations) {
       const card = h('a', { class: 'card', href: titleHref(r, next) },
-        posterEl(r), h('div', { class: 'name', text: r.title }), h('div', { class: 'meta', text: r.year || '' }));
+        posterEl(r), cardText(r.title, h('div', { class: 'meta', text: r.year || '' })));
       pressable(card, r, [blockItem(r, card)]);
       grid.append(card);
     }
@@ -490,21 +499,36 @@ async function renderLibrary(seq) {
   }
   // One section per group, each under a header that sticks below the title
   // bar while its section scrolls past (like the letters in iOS Contacts).
-  // The chips above are shortcuts that scroll to a section, not filters.
   const groups = [
-    ['Watched', data.items.filter((it) => it.watched)],
-    ['Not watched', data.items.filter((it) => !it.watched)],
+    ['Watched', null, data.items.filter((it) => it.watched)],
+    ['Not watched', null, data.items.filter((it) => !it.watched)],
     // Watched, but no longer in the library (reaped, or from before spor):
-    // still worth rating, since it shapes Discover. Name to be settled.
-    ['Watched earlier', data.earlier || []],
-  ].filter(([, items]) => items.length);
-  const sections = groups.map(([label, items]) => h('section', { class: 'lib-section' },
-    h('h2', { class: 'section-head' }, h('span', { text: label }), h('span', { class: 'count', text: String(items.length) })),
+    // still worth rating, since it shapes Discover.
+    ['Removed', 'Watched, then deleted from the library. Ratings still count.',
+      (data.earlier || []).map((it) => ({ ...it, removed: true }))],
+  ].filter(([, , items]) => items.length);
+  const sections = groups.map(([label, sub, items]) => h('section', { class: 'lib-section' },
+    h('div', { class: 'section-head' },
+      h('div', { class: 'title-row' }, h('h2', { text: label }), h('span', { class: 'count', text: String(items.length) })),
+      sub ? h('span', { class: 'sub', text: sub }) : null),
     h('div', { class: 'grid' }, ...items.map(libraryCard))));
-  const jumps = h('div', { class: 'filters' }, ...groups.map(([label], i) =>
-    h('button', { class: 'chip', type: 'button', text: label,
-      onclick: () => sections[i].scrollIntoView({ behavior: 'smooth', block: 'start' }) })));
-  view.replaceChildren(...header('Library', lede), jumps, ...sections);
+  // The switcher scrolls to a section rather than filtering, and its
+  // highlight follows the scroll position.
+  const buttons = groups.map(([label], i) => h('button', { type: 'button', text: label,
+    onclick: () => sections[i].scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
+  const segments = h('div', { class: 'segments', role: 'tablist' }, ...buttons);
+  const follow = () => {
+    if (!segments.isConnected) return window.removeEventListener('scroll', follow);
+    const line = scrollY + topbar.offsetHeight + 80;
+    const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 4;
+    let on = 0;
+    sections.forEach((s, i) => { if (s.offsetTop <= line) on = i; });
+    if (atEnd) on = sections.length - 1;
+    buttons.forEach((b, i) => { b.classList.toggle('on', i === on); b.setAttribute('aria-selected', String(i === on)); });
+  };
+  window.addEventListener('scroll', follow, { passive: true });
+  view.replaceChildren(...header('Library', lede), segments, ...sections);
+  follow();
 }
 
 // thumb is a thumbs-up or -down line icon (Lucide, ISC licence).
@@ -517,11 +541,16 @@ function thumb(dir) {
 
 function libraryCard(it) {
   const poster = posterEl(it);
-  const card = h('div', { class: 'card' + (it.watched ? '' : ' unwatched') }, poster,
-    h('div', { class: 'name', text: it.title }), h('div', { class: 'meta', text: it.year || '' }));
+  const variant = it.removed ? ' removed' : it.watched ? '' : ' unwatched';
+  const card = h('div', { class: 'card' + variant }, poster, cardText(it.title, h('div', { class: 'meta', text: it.year || '' })));
   if (!it.watched) {
-    poster.append(h('div', { class: 'banner', text: 'Not watched' }));
+    poster.append(h('div', { class: 'banner', text: 'NOT WATCHED' }));
     return card;
+  }
+  if (it.removed) {
+    poster.append(h('span', { class: 'removed-tag' },
+      svg('<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'),
+      'REMOVED'));
   }
   const up = h('button', { class: 'up', 'aria-label': `Liked ${it.title}` }, thumb('up'));
   const down = h('button', { class: 'down', 'aria-label': `Disliked ${it.title}` }, thumb('down'));
@@ -559,8 +588,8 @@ async function renderBlocked(seq) {
   }
   const grid = h('div', { class: 'grid' });
   for (const b of data.items) {
-    const btn = h('button', { class: 'btn ghost', style: 'width:100%;margin-top:8px;padding:6px 0', text: 'Unblock' });
-    const card = h('div', { class: 'card' }, posterEl(b), h('div', { class: 'name', text: b.title || `${b.type} ${b.id}` }), btn);
+    const btn = h('button', { class: 'btn ghost', style: 'width:100%;height:42px;font-size:15px;border-radius:14px', text: 'Unblock' });
+    const card = h('div', { class: 'card' }, posterEl(b), cardText(b.title || `${b.type} ${b.id}`, h('div', { class: 'meta', text: b.year || '' })), btn);
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       try { await api('POST', '/api/unblock', { type: b.type, id: b.id }); card.remove(); toast(`Unblocked ${b.title}`); } catch (err) {

@@ -33,7 +33,7 @@ recommend it; ≤ 0 is never shown.
 | `SPOR_SYNC_INTERVAL` | How often history is copied from Jellyfin/Seerr. Default `15m`, minimum `1m` |
 | `SPOR_OIDC_*`, `SPOR_AUTH_DISABLED`, ... | Login, see [authy](https://github.com/miista/authy). Scopes asked: `openid profile email groups` |
 | `SPOR_ANONYMOUS_USER` | Only with `SPOR_AUTH_DISABLED=true` (local trials): the Seerr user everyone acts as |
-| `SPOR_DATA_DIR` | Default `/app/data`: `spor.db` (SQLite) and `auth/` |
+| `SPOR_DATA_DIR` | Default `/app/data`: `spor.db` (SQLite), `auth/`, and `images/`, the posters spor serves so the page never contacts TMDb (a cache: safe to delete, not worth backing up) |
 | `SPOR_ADDR`, `SPOR_LOG_LEVEL` | Default `:8080`, `info` |
 
 A signed-in person is matched to their Seerr account by email, then to Jellyfin

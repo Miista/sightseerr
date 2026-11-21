@@ -154,7 +154,8 @@ func main() {
 		logger.Fatal().Err(err).Msg("embedded frontend assets missing")
 	}
 	srv := &Server{
-		seerr: seerr, store: store, people: people, statuses: statuses, ready: sy.isReady,
+		seerr: seerr, images: newImageStore(filepath.Join(cfg.dataDir, "images")),
+		store: store, people: people, statuses: statuses, ready: sy.isReady,
 		static: static, log: logger, now: time.Now, dryRun: cfg.dryRun, seerrPublic: cfg.seerrPublic,
 	}
 	if cfg.dryRun {

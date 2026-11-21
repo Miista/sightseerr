@@ -5,32 +5,34 @@
 <title>spor</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0b0b10">
+<meta name="theme-color" content="#090b10">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="preload" href="/vendor/fonts/dm-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/vendor/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/vendor/fonts/dm-mono-500-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 <!-- authy marks the page (data-authy) when a login is in place; without one there is nobody to sign out. -->
 <script src="/auth/client.js"></script>
 <style>html:not([data-authy]) .only-with-gate { display: none !important }</style>
 </head>
 <body>
-<div class="bg-glow" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
 
 <header class="top">
-  <a class="brand" href="/" data-nav>
-    <span class="logo" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0b0b10" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h4a4 4 0 0 0 4-4v-0a4 4 0 0 1 4-4"/></svg></span>
-    <span class="brand-name">spor</span>
-  </a>
-  <!-- Wide screens; phones get .bottom-bar instead (style.css). -->
-  <nav class="tabs">
-    <a href="/" data-nav data-tab="wall">Discover</a>
-    <a href="/library" data-nav data-tab="library">Library</a>
-  </nav>
-  <!-- Blocked has no tab: it's reached from the foot of Discover. -->
-  <div class="who">
-    <span class="who-name" id="me"></span>
-    <a class="only-with-gate" href="/auth/logout">Sign out</a>
+  <div class="top-in">
+    <a class="brand" href="/" data-nav>
+      <span class="logo" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><circle cx="6" cy="19" r="2.5"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="2.5"/></svg></span>
+      <span class="brand-name">spor</span>
+    </a>
+    <!-- Wide screens; phones get .bottom-bar instead (style.css). -->
+    <nav class="tabs">
+      <a href="/" data-nav data-tab="wall"><svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>Discover</a>
+      <a href="/library" data-nav data-tab="library"><svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>Library</a>
+    </nav>
+    <!-- Blocked has no tab: it's reached from the foot of Discover. -->
+    <div class="who">
+      <span class="who-name" id="me"></span>
+      <a class="only-with-gate" href="/auth/logout">Sign out</a>
+    </div>
   </div>
 </header>
 
@@ -39,8 +41,8 @@
 <!-- The phone's tabs, in the thumb zone. Outside the header on purpose: a
      fixed bar inside the (blurred) header would be pinned to the header. -->
 <nav class="bottom-bar" aria-label="Sections">
-  <a href="/" data-nav data-tab="wall"><svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg><span>Discover</span></a>
-  <a href="/library" data-nav data-tab="library"><svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16M16 4v16"/></svg><span>Library</span></a>
+  <a href="/" data-nav data-tab="wall"><svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span>Discover</span></a>
+  <a href="/library" data-nav data-tab="library"><svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg><span>Library</span></a>
 </nav>
 
 <div class="menu" id="menu" hidden role="menu"></div>

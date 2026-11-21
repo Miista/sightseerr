@@ -33,6 +33,7 @@ type seerrAPI interface {
 // Server is the HTTP API and the page.
 type Server struct {
 	seerr    seerrAPI
+	images   *imageStore
 	store    *Store
 	people   *directory
 	statuses *statusBook
@@ -66,6 +67,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/blocked", s.blocked)
 	mux.HandleFunc("POST /api/block", s.block)
 	mux.HandleFunc("POST /api/unblock", s.unblock)
+	if s.images != nil {
+		mux.HandleFunc("GET /img/{size}/{name}", s.images.serve)
+	}
 	// The page's own routes all load the one page; app.js reads the path.
 	for _, p := range []string{"GET /movie/{id}", "GET /tv/{id}", "GET /library", "GET /blocked"} {
 		mux.HandleFunc(p, s.page)
