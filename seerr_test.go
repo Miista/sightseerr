@@ -51,6 +51,48 @@ func TestSeerrTitleNormalises(t *testing.T) {
 	}
 }
 
+func TestSeerrRatings(t *testing.T) {
+	_, c := newSeerrStub(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/movie/27205/ratingscombined":
+			fmt.Fprint(w, `{"rt":{"url":"https://rt/m/inception","criticsRating":"Certified Fresh","criticsScore":86,"audienceRating":"Upright","audienceScore":91},
+				"imdb":{"url":"https://imdb/tt1375666","criticsScore":8.8}}`)
+		case "/api/v1/movie/1/ratingscombined":
+			fmt.Fprint(w, `{"rt":{"criticsRating":"Rotten","criticsScore":20,"audienceRating":"Spilled","audienceScore":30}}`)
+		case "/api/v1/tv/1399/ratings":
+			fmt.Fprint(w, `{"url":"https://rt/tv/got","criticsRating":"Fresh","criticsScore":89,"audienceRating":"Upright","audienceScore":85}`)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"message":"Rotten Tomatoes ratings not found."}`)
+		}
+	})
+	ctx := context.Background()
+	if r, err := c.Ratings(ctx, Key{Movie, 27205}); err != nil || r.RTCritics != 86 || r.RTAudience != 91 || r.IMDb != 8.8 || r.RTCriticsRotten || r.RTAudienceRotten || r.IMDbURL == "" {
+		t.Errorf("Inception: %+v, %v", r, err)
+	}
+	if r, _ := c.Ratings(ctx, Key{Movie, 1}); !r.RTCriticsRotten || !r.RTAudienceRotten || r.IMDb != 0 {
+		t.Errorf("rotten movie: %+v", r)
+	}
+	if r, err := c.Ratings(ctx, Key{TV, 1399}); err != nil || r.RTCritics != 89 || r.RTAudience != 85 || r.IMDb != 0 {
+		t.Errorf("show: %+v, %v", r, err)
+	}
+	// Nothing on Rotten Tomatoes is no ratings, not a failure.
+	if r, err := c.Ratings(ctx, Key{Movie, 2}); err != nil || r != (Ratings{}) {
+		t.Errorf("no ratings: %+v, %v", r, err)
+	}
+}
+
+func TestSeerrNotFoundKeepsSeerrsMessage(t *testing.T) {
+	_, c := newSeerrStub(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, `{"message":"Unable to retrieve movie."}`)
+	})
+	_, err := c.Details(context.Background(), Key{Movie, 5})
+	if !errors.Is(err, errSeerr) || !errors.Is(err, errSeerrNotFound) || userMessage(err) != "Unable to retrieve movie." {
+		t.Fatalf("error %v shown as %q", err, userMessage(err))
+	}
+}
+
 func TestDetailsCollection(t *testing.T) {
 	var s seerrTitle
 	json.Unmarshal([]byte(`{"id":188927,"title":"Star Trek Beyond","collection":{"id":115575,"name":"Star Trek: Alternate Reality Collection"}}`), &s)

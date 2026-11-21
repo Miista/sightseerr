@@ -51,7 +51,6 @@ async function api(method, path, body) {
 }
 
 const keyOf = (t) => `${t.type}:${t.id}`;
-const titleHref = (t, via) => `/${t.type}/${t.id}` + (via.length ? `?via=${via.map(encodeURIComponent).join(',')}` : '');
 
 // ---------- Navigation ----------
 
@@ -68,7 +67,11 @@ history.scrollRestoration = 'manual'; // the page renders after fetching, so do 
 // The last place in Discover (the wall, or a title with its trail): the
 // Discover tab brings you back there from Library rather than to the wall.
 let lastDiscover = sessionStorage.getItem('spor.discover') || '/';
-const inDiscover = (path) => path === '/' || /^\/(movie|tv)\/\d+$/.test(path);
+// Where you are counts as Discover on the wall, and on a title page unless
+// the chain started in Library (root=library), which keeps Library's tab lit.
+const isTitle = (path) => /^\/(movie|tv)\/\d+$/.test(path);
+const fromLibrary = () => new URLSearchParams(location.search).get('root') === 'library';
+const inDiscover = (path) => path === '/' || (isTitle(path) && !fromLibrary());
 
 async function go(url, { restore = false } = {}) {
   saveScroll();
@@ -87,7 +90,8 @@ document.addEventListener('click', (e) => {
   // The Discover tab, from outside Discover: back to where you were there.
   // From inside Discover it goes to the wall, like tapping an iOS tab twice.
   if (a.dataset.tab === 'wall' && !inDiscover(location.pathname)) return go(lastDiscover, { restore: true });
-  go(url.pathname + url.search);
+  // A title page's Back out to Discover or Library lands where you were there.
+  go(url.pathname + url.search, { restore: a.dataset.restore === '1' });
 });
 window.addEventListener('popstate', async () => {
   await render();
@@ -110,9 +114,10 @@ function setTab(name) {
 
 async function render() {
   const seq = ++renderSeq;
-  closeMenu();
   for (const dlg of document.querySelectorAll('dialog[open]')) dlg.close();
   document.title = 'spor';
+  setHeadTitle(null);
+  if (!isTitle(location.pathname)) closePanel(); // the path panel belongs to title pages
   const path = location.pathname;
   const m = path.match(/^\/(movie|tv)\/(\d+)$/);
   if (!me) {
@@ -128,8 +133,8 @@ async function render() {
     lastDiscover = here();
     sessionStorage.setItem('spor.discover', lastDiscover);
   }
-  // A title page is part of Discover, so the Discover tab stays lit there.
-  if (m) { setTab('wall'); return renderTitle(seq, m[1], Number(m[2]), new URLSearchParams(location.search).get('via') || ''); }
+  // A title page belongs to the tab its chain started from.
+  if (m) { setTab(fromLibrary() ? 'library' : 'wall'); return renderTitle(seq, m[1], Number(m[2]), new URLSearchParams(location.search)); }
   if (path === '/library') { setTab('library'); return renderLibrary(seq); }
   if (path === '/blocked') { setTab(''); return renderBlocked(seq); }
   setTab('wall');
@@ -176,80 +181,74 @@ function cardText(title, line) {
   return h('div', { class: 'card-text' }, h('div', { class: 'name', text: title }), line);
 }
 
-// ---------- Context menu (long-press on touch, right-click elsewhere) ----------
+// ---------- Block (press-and-hold on touch, right-click elsewhere) ----------
 
-const menu = $('menu');
-let menuFor = null;
-
-function closeMenu() { menu.hidden = true; menuFor = null; }
-
-function openMenu(x, y, t, items) {
-  menuFor = t;
-  menu.replaceChildren(h('div', { class: 'head', text: t.title }),
-    ...items.map((it) => h('button', { class: it.danger ? 'danger' : '', role: 'menuitem', text: it.label,
-      onclick: () => { closeMenu(); it.run(); } })));
-  menu.hidden = false;
-  const r = menu.getBoundingClientRect();
-  menu.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
-  menu.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
-  menu.querySelector('button')?.focus({ preventScroll: true });
-}
-
+// An open path dropdown closes on a tap anywhere else.
 document.addEventListener('pointerdown', (e) => {
-  if (!menu.hidden && !menu.contains(e.target)) closeMenu();
-  // An open trail dropdown closes on a tap anywhere else.
-  for (const d of document.querySelectorAll('details.trail[open]')) if (!d.contains(e.target)) d.open = false;
+  for (const w of document.querySelectorAll('.path-wrap')) {
+    const drop = w.querySelector('.path-drop');
+    if (drop && !drop.hidden && !w.contains(e.target)) {
+      drop.hidden = true;
+      w.querySelector('.path-pill')?.classList.remove('open');
+    }
+  }
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
-window.addEventListener('scroll', closeMenu, { passive: true });
 
-// pressable opens the menu on a long press or a right-click, and swallows the
-// click that ends a long press so it doesn't also open the title.
-function pressable(el, t, items) {
+// pressable calls onHold on a press-and-hold or a right-click, and swallows
+// the click that ends a hold so it doesn't also open the title.
+function pressable(el, t, onHold) {
   let timer = null, startX = 0, startY = 0, fired = false, lastOpen = 0;
-  const open = (x, y) => {
-    if (Date.now() - lastOpen < 600) return; // touch long-press can also send contextmenu
+  const open = () => {
+    if (Date.now() - lastOpen < 600) return; // a touch hold can also send contextmenu
     lastOpen = Date.now();
     fired = true;
-    openMenu(x, y, t, items);
+    onHold();
   };
   el.addEventListener('pointerdown', (e) => {
     fired = false;
     if (e.pointerType === 'mouse') return;
     startX = e.clientX; startY = e.clientY;
-    timer = setTimeout(() => { navigator.vibrate?.(10); open(startX, startY); }, 500);
+    timer = setTimeout(() => { navigator.vibrate?.(10); open(); }, 480);
   });
   el.addEventListener('pointermove', (e) => {
     if (timer && Math.hypot(e.clientX - startX, e.clientY - startY) > 10) { clearTimeout(timer); timer = null; }
   });
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, () => { clearTimeout(timer); timer = null; });
-  el.addEventListener('contextmenu', (e) => { e.preventDefault(); open(e.clientX, e.clientY); });
+  el.addEventListener('contextmenu', (e) => { e.preventDefault(); open(); });
   el.addEventListener('click', (e) => { if (fired) { e.preventDefault(); e.stopPropagation(); fired = false; } }, true);
 }
 
-// blockItem hides the card at once; Undo puts it back where it was.
-function blockItem(t, card) {
-  return {
-    label: 'Not interested — block', danger: true,
-    run: async () => {
-      const parent = card.parentNode, next = card.nextSibling;
-      card.remove();
-      try {
-        await api('POST', '/api/block', { type: t.type, id: t.id });
-      } catch (err) {
-        parent?.insertBefore(card, next);
-        return toast(err.message, { error: true });
-      }
-      toast(`${t.title} blocked`, {
-        undo: async () => {
-          try {
-            await api('POST', '/api/unblock', { type: t.type, id: t.id });
-            parent?.insertBefore(card, next);
-          } catch (err) { toast(err.message, { error: true }); }
-        },
-      });
-    },
+// blockSheet offers to block a title. Blocking hides the card at once; Undo
+// puts it back where it was. (No "view details": a normal tap opens it.)
+function blockSheet(t, card) {
+  const block = async () => {
+    dlg.close();
+    const parent = card.parentNode, next = card.nextSibling;
+    card.remove();
+    try {
+      await api('POST', '/api/block', { type: t.type, id: t.id });
+    } catch (err) {
+      parent?.insertBefore(card, next);
+      return toast(err.message, { error: true });
+    }
+    toast(`${t.title} blocked`, {
+      undo: async () => {
+        try {
+          await api('POST', '/api/unblock', { type: t.type, id: t.id });
+          parent?.insertBefore(card, next);
+        } catch (err) { toast(err.message, { error: true }); }
+      },
+    });
   };
+  const dlg = sheet(`Block ${t.title}`,
+    h('div', { class: 'dialog-head' },
+      t.poster ? h('img', { src: IMG + 'w154' + t.poster, alt: '' }) : null,
+      h('div', { class: 'dialog-title', text: t.title })),
+    h('div', { class: 'dialog-body' },
+      h('button', { class: 'block-btn', type: 'button', onclick: block },
+        h('span', { class: 'block-label', text: 'Not interested — block' }),
+        h('span', { class: 'block-sub', text: 'Hides it and steers recommendations away' }))),
+    h('div', { class: 'dialog-foot' }, h('button', { class: 'btn ghost', type: 'button', text: 'Cancel', onclick: () => dlg.close() })));
 }
 
 // ---------- Toast ----------
@@ -258,8 +257,8 @@ let toastTimer = null;
 function toast(msg, opts = {}) {
   const el = $('toast');
   el.classList.toggle('error', !!opts.error);
-  el.replaceChildren(h('span', { text: msg }),
-    opts.undo ? h('button', { text: 'Undo', onclick: () => { el.hidden = true; opts.undo(); } }) : null);
+  el.replaceChildren(...[h('span', { text: msg }),
+    opts.undo ? h('button', { text: 'Undo', onclick: () => { el.hidden = true; opts.undo(); } }) : null].filter(Boolean));
   el.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.hidden = true; }, opts.undo ? 4500 : 4000);
@@ -284,93 +283,191 @@ async function renderWall(seq) {
     return view.replaceChildren(...header('Discover'), h('div', { class: 'note' },
       h('strong', { text: data.seeds ? 'Nothing new to suggest right now' : 'Nothing to go on yet' }),
       data.seeds ? 'Everything recommended is already in the library, watched or blocked.'
-        : 'Once you\'ve watched or requested something, suggestions show up here.'), foot);
+        : 'Once you\'ve watched or requested something, suggestions show up here.'), ...(foot ? [foot] : []));
   }
   const grid = h('div', { class: 'grid' });
   for (const c of data.cards) {
     const b = c.because;
-    const card = h('a', { class: 'card', href: titleHref(c, [keyOf(b)]) },
+    const card = h('a', { class: 'card', href: titlePath(c, { seed: keyOf(b) }) },
       posterEl(c),
       cardText(c.title, h('div', { class: 'because' }, `Because you ${b.reason} `, h('b', { text: b.title || 'something' }))));
-    pressable(card, c, [blockItem(c, card)]);
+    pressable(card, c, () => blockSheet(c, card));
     grid.append(card);
   }
-  view.replaceChildren(...header('Discover', 'New to you, because of what you\'ve watched and requested.'), grid, foot);
+  view.replaceChildren(...header('Discover', 'New to you, because of what you\'ve watched and requested.'), grid, ...(foot ? [foot] : []));
 }
 
 // ---------- Title ----------
 
+// A title's path: the titles opened before it (via) and, after jumping back,
+// the ones opened after it (ahead), plus where the chain started (root:
+// Discover or Library). It all lives in the URL, so Back, reload and shared
+// links keep it. seed (straight from Discover) is only for spor's own
+// record of what led where; it isn't part of the path you see.
+function titlePath(t, { via = [], ahead = [], root = '', seed = '' } = {}) {
+  const q = [];
+  if (via.length) q.push('via=' + via.join(','));
+  if (ahead.length) q.push('ahead=' + ahead.join(','));
+  if (root === 'library') q.push('root=library');
+  if (seed) q.push('seed=' + seed);
+  return `/${t.type}/${t.id}` + (q.length ? '?' + q.join('&') : '');
+}
+const rootPath = (root) => (root === 'library' ? '/library' : '/');
+const wide = () => matchMedia('(min-width: 821px)').matches;
+// Phone and desktop lay the title page out differently; crossing the
+// breakpoint redraws it (the path and everything else are in the URL).
+matchMedia('(min-width: 821px)').addEventListener('change', () => { if (/^\/(movie|tv)\//.test(location.pathname)) render(); });
+
+const ICONS = {
+  path: '<svg class="ico path" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="2.5"/></svg>',
+  back: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+  down: '<svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+  right: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
+  x: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+};
+
 function titleSkeleton() {
-  return h('div', {},
-    h('div', { class: 'skel line short', style: 'width:220px;margin-bottom:16px' }),
-    h('div', { class: 'hero' }, h('div', { class: 'hero-in' },
-      h('div', { class: 'poster skel' }),
-      h('div', { class: 'hero-text', style: 'flex:1' },
-        h('div', { class: 'skel h1' }), h('div', { class: 'skel para', style: 'width:40%' }),
-        h('div', { class: 'skel para' }), h('div', { class: 'skel para' }), h('div', { class: 'skel para', style: 'width:70%' })))),
-    h('h2', { text: 'More like this' }), gridSkeleton(12));
+  return h('div', { class: 'detail', 'aria-busy': 'true' },
+    h('div', { class: 'd-hero skel' }),
+    h('div', { class: 'd-info' },
+      h('div', { class: 'skel h1' }), h('div', { class: 'skel para', style: 'width:60%' }),
+      h('div', { class: 'skel para' }), h('div', { class: 'skel para', style: 'width:80%' })));
 }
 
 // Where a collection part stands for you (server: partState).
-const PART_STATES = {
-  watched: ['watched', 'Watched'],
-  library: ['library', 'In library'],
-  requested: ['requested', 'Requested'],
-};
+const PART_STATES = { watched: 'Watched', library: 'In library', requested: 'Requested' };
 
 function statusLabel(d) {
   switch (d.title.status) {
     case 5: return 'In the library';
     case 4: return 'Partly in the library';
-    case 2: case 3: return 'Requested';
+    case 2: case 3: return 'Requested ✓';
     case 6: return 'Blocklisted in Seerr';
   }
-  return d.requested ? 'Requested' : null;
+  return d.requested ? 'Requested ✓' : null;
 }
 
-async function renderTitle(seq, type, id, viaRaw) {
+// statsBlock: year, runtime (or seasons) and genre, then the outside scores
+// with their real logos (as Seerr shows them, from Seerr's own assets).
+function statsBlock(t, s = {}) {
+  const runtime = t.runtime ? `${Math.floor(t.runtime / 60) ? Math.floor(t.runtime / 60) + 'h ' : ''}${t.runtime % 60}m` : null;
+  const facts = [['Year', t.year],
+    t.type === 'tv' ? ['Seasons', t.seasons ? String(t.seasons) : null] : ['Runtime', runtime],
+    ['Genre', (t.genres || []).slice(0, 3).join(', ')]];
+  const top = h('div', { class: 'stat-row' }, ...facts.map(([label, value], i) =>
+    h('div', { class: 'stat' + (i === 2 ? ' wide' : '') }, h('div', { class: 'stat-label', text: label }), h('div', { class: 'stat-value', text: value || '—' }))));
+  const score = (logo, alt, value, href) => {
+    const kids = [h('img', { src: `/vendor/ratings/${logo}.svg`, alt, class: logo === 'imdb' || logo === 'tmdb_logo' ? 'logo-wide' : '' }), h('span', { text: value })];
+    return href ? h('a', { class: 'score', href, target: '_blank', rel: 'noopener', title: alt }, ...kids) : h('div', { class: 'score', title: alt }, ...kids);
+  };
+  const scores = [
+    s.rtCritics ? score(s.rtCriticsRotten ? 'rt_rotten' : 'rt_fresh', 'Rotten Tomatoes critics', `${s.rtCritics}%`, s.rtUrl) : null,
+    s.rtAudience ? score(s.rtAudienceRotten ? 'rt_aud_rotten' : 'rt_aud_fresh', 'Rotten Tomatoes audience', `${s.rtAudience}%`, s.rtUrl) : null,
+    s.imdb ? score('imdb', 'IMDb', s.imdb.toFixed(1), s.imdbUrl) : null,
+    t.rating ? score('tmdb_logo', 'TMDB user score', `${Math.round(t.rating * 10)}%`) : null,
+  ].filter(Boolean);
+  return h('div', { class: 'stats' }, top, scores.length ? h('div', { class: 'score-row' }, ...scores) : null);
+}
+
+// pathList: the titles of this chain, from the first one opened down to this
+// one, then any you jumped back from (faded, so you can go forward again).
+function pathList(d, root) {
+  const t = d.title, cur = keyOf(t);
+  const trail = d.trail.map(keyOf), ahead = (d.ahead || []).map(keyOf);
+  if (!trail.length && !ahead.length) {
+    return h('p', { class: 'path-empty', text: 'Titles you open from here get added to your path, so you can jump back to any of them.' });
+  }
+  return h('ol', { class: 'plist' },
+    ...d.trail.map((s, i) => h('li', {}, h('a', { href: titlePath(s, { via: trail.slice(0, i), ahead: [...trail.slice(i + 1), cur, ...ahead], root }), text: s.title || '…' }))),
+    h('li', { class: 'here', 'aria-current': 'page' }, h('span', { text: t.title })),
+    ...(d.ahead || []).map((s, j) => h('li', { class: 'ahead' }, h('a', { href: titlePath(s, { via: [...trail, cur, ...ahead.slice(0, j)], ahead: ahead.slice(j + 1), root }), text: s.title || '…' }))));
+}
+
+// centre keeps the current title in view inside a scrolling path list.
+function centre(list) {
+  const cur = list?.querySelector('.here');
+  if (cur) list.scrollTop = cur.offsetTop - list.clientHeight / 2 + cur.offsetHeight / 2;
+}
+
+// The desktop path panel stays open across titles until closed.
+const panelWanted = () => sessionStorage.getItem('spor.panel') === '1';
+function closePanel() {
+  document.querySelector('.path-panel')?.remove();
+  document.body.classList.remove('panel-open');
+}
+function showPanel(d, root, animate) {
+  closePanel();
+  const panel = h('aside', { class: 'path-panel', 'aria-label': 'Path' },
+    h('div', { class: 'panel-head' }, h('span', { class: 'kicker', text: 'How you got here' }),
+      h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Close the path',
+        onclick: () => { sessionStorage.setItem('spor.panel', '0'); closePanel(); document.querySelector('.path-pill')?.classList.remove('on'); } }, svg(ICONS.x))),
+    pathList(d, root));
+  document.body.append(panel);
+  document.body.classList.add('panel-open');
+  requestAnimationFrame(() => { panel.classList.toggle('open', true); if (!animate) panel.classList.add('instant'); centre(panel.querySelector('.plist')); });
+}
+
+async function renderTitle(seq, type, id, q) {
+  const root = q.get('root') === 'library' ? 'library' : '';
   view.replaceChildren(titleSkeleton());
+  const ask = new URLSearchParams();
+  for (const k of ['via', 'ahead', 'seed']) if (q.get(k)) ask.set(k, q.get(k));
   let d;
-  try {
-    d = await api('GET', `/api/title/${type}/${id}` + (viaRaw ? `?via=${encodeURIComponent(viaRaw)}` : ''));
-  } catch (err) { if (seq === renderSeq) showNote('Could not load this title', err.message); return; }
+  try { d = await api('GET', `/api/title/${type}/${id}?${ask}`); } catch (err) { if (seq === renderSeq) showNote('Could not load this title', err.message); return; }
   if (seq !== renderSeq) return;
-  const t = d.title;
-  const via = d.trail.map(keyOf);
+  const t = d.title, cur = keyOf(t);
+  const trail = d.trail.map(keyOf), ahead = (d.ahead || []).map(keyOf);
+  // Going on from this page: the path grows by this title; if the next title
+  // is the first one ahead of you, the rest of what's ahead is kept.
+  const onward = (x) => titlePath(x, { via: [...trail, cur], ahead: ahead[0] === keyOf(x) ? ahead.slice(1) : [], root });
+  // Back: one title up the path (this one goes ahead), or out to where the
+  // chain started. Opening from Discover and pressing Back is always Discover.
+  const back = trail.length
+    ? titlePath(d.trail[trail.length - 1], { via: trail.slice(0, -1), ahead: [cur, ...ahead], root })
+    : rootPath(root);
+  const isWide = wide();
 
-  // The path here, folded into a dropdown: closed it names the step you came
-  // from; open it lists every step from Discover down to this title.
-  const prev = d.trail.length ? d.trail[d.trail.length - 1].title || '…' : 'Discover';
-  const steps = d.trail.length + 1; // the trail plus this title
-  const crumbs = h('details', { class: 'trail' },
-    h('summary', { 'aria-label': 'How you got here' },
-      svg('<svg class="trail-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h4a4 4 0 0 0 4-4 4 4 0 0 1 4-4"/></svg>'),
-      h('span', { class: 'trail-prev', text: prev }),
-      h('span', { class: 'trail-count', text: `${steps} step${steps === 1 ? '' : 's'}` }),
-      h('span', { class: 'trail-caret', 'aria-hidden': 'true', text: '▾' })),
-    h('ol', {},
-      h('li', {}, h('a', { href: '/', text: 'Discover' })),
-      ...d.trail.map((s, i) => h('li', {}, h('a', { href: titleHref(s, via.slice(0, i)), text: s.title || '…' }))),
-      h('li', { class: 'here', 'aria-current': 'page' }, h('span', { text: t.title }))));
+  // The path pill: a dropdown on a phone, the side panel on desktop.
+  const pill = h('button', { class: 'path-pill', type: 'button', 'aria-expanded': 'false' }, svg(ICONS.path), h('span', { text: 'Path' }), svg(ICONS.down));
+  const pathWrap = h('div', { class: 'path-wrap' }, pill);
+  if (isWide) {
+    if (panelWanted()) { pill.classList.add('on'); showPanel(d, root, false); } else closePanel();
+    pill.addEventListener('click', () => {
+      const open = !document.querySelector('.path-panel');
+      sessionStorage.setItem('spor.panel', open ? '1' : '0');
+      pill.classList.toggle('on', open);
+      if (open) showPanel(d, root, true); else closePanel();
+    });
+  } else {
+    closePanel();
+    const drop = h('div', { class: 'path-drop', hidden: true }, h('div', { class: 'kicker', text: 'How you got here' }), pathList(d, root));
+    pathWrap.append(drop);
+    pill.addEventListener('click', () => {
+      drop.hidden = !drop.hidden;
+      pill.setAttribute('aria-expanded', String(!drop.hidden));
+      pill.classList.toggle('open', !drop.hidden);
+      if (!drop.hidden) centre(drop.querySelector('.plist'));
+    });
+  }
+  const backBtn = isWide
+    ? h('a', { class: 'pill-btn', href: back, 'data-restore': trail.length ? null : '1' }, svg(ICONS.back), 'Back')
+    : h('a', { class: 'round-btn', href: back, 'aria-label': 'Back', 'data-restore': trail.length ? null : '1' }, svg(ICONS.back));
 
-  const facts = [t.year, t.runtime ? `${Math.floor(t.runtime / 60) ? Math.floor(t.runtime / 60) + 'h ' : ''}${t.runtime % 60}m` : null,
-    t.seasons ? `${t.seasons} season${t.seasons === 1 ? '' : 's'}` : null,
-    t.rating ? `★ ${t.rating.toFixed(1)}` : null, (t.genres || []).slice(0, 3).join(', ') || null,
-    d.watched ? 'You\'ve watched this' : null].filter(Boolean);
-
+  // Request: full width on a phone; "Requested ✓" once asked for.
   const actions = h('div', { class: 'actions' });
   const label = statusLabel(d);
   if (d.requestable) {
     const word = t.type === 'tv' ? 'Request series' : 'Request';
-    const btn = h('button', { class: 'btn', text: word });
-    // Asked up front so the popup opens at once; people Seerr doesn't let
-    // choose (or a failed lookup) get no popup, just the request.
+    const btn = h('button', { class: 'btn req', text: word });
+    // Asked up front so the sheet opens at once; people Seerr doesn't let
+    // choose (or a failed lookup) get no sheet, just the request.
     const options = api('GET', `/api/request-options/${t.type}`).catch(() => ({ advanced: false }));
     const send = async (choice) => {
       btn.disabled = true; btn.textContent = 'Requesting…';
       try {
-        const res = await api('POST', '/api/request', { type: t.type, id: t.id, via, ...choice });
-        btn.textContent = res.dryRun ? 'Requested (dry run)' : 'Requested'; btn.classList.add('done');
+        const res = await api('POST', '/api/request', { type: t.type, id: t.id, via: trail, ...choice });
+        btn.textContent = res.dryRun ? 'Requested ✓ (dry run)' : 'Requested ✓';
+        btn.classList.add('done', 'pop');
         if (res.dryRun) toast('Dry run: nothing was sent to Seerr');
         return true;
       } catch (err) {
@@ -387,67 +484,98 @@ async function renderTitle(seq, type, id, viaRaw) {
     });
     actions.append(btn);
   } else if (label) {
-    actions.append(h('button', { class: 'btn done', disabled: true, text: label }));
+    actions.append(h('button', { class: 'btn req done', disabled: true, text: label }));
   }
-  const links = d.links || {};
-  if (links.seerr) {
-    actions.append(h('a', { class: 'btn ghost', href: links.seerr, target: '_blank', rel: 'noopener', text: 'Open in Seerr ↗' }));
+
+  // The collection: other parts only, collapsed under a pinned bar.
+  const others = (d.collection || []).filter((p) => !p.current);
+  let coll = null;
+  if (t.collection && others.length) {
+    const list = h('div', { class: 'coll-list', hidden: true }, ...others.map((p) =>
+      h('a', { class: 'coll-row', href: onward(p) },
+        p.poster ? h('img', { src: IMG + 'w154' + p.poster, alt: '', loading: 'lazy' }) : h('div', { class: 'coll-noimg' }),
+        h('div', { class: 'coll-text' },
+          h('span', { class: `kind ${p.type}`, text: p.type === 'tv' ? 'Series' : 'Movie' }),
+          h('div', { class: 'coll-name', text: p.title }),
+          h('div', { class: 'coll-meta' }, h('span', { text: p.year || 'Coming' }), PART_STATES[p.state] ? h('span', { class: `state ${p.state}`, text: PART_STATES[p.state] }) : null)),
+        svg(ICONS.right))));
+    const bar = h('button', { class: 'coll-bar', type: 'button', 'aria-expanded': 'false' },
+      h('div', {},
+        h('div', { class: 'kicker', text: `Collection · ${others.length} more title${others.length === 1 ? '' : 's'}` }),
+        h('div', { class: 'coll-title', text: t.collection.name })),
+      h('span', { class: 'round-chev' }, svg(ICONS.down)));
+    const setOpen = (open) => { list.hidden = !open; bar.setAttribute('aria-expanded', String(open)); bar.classList.toggle('open', open); };
+    bar.addEventListener('click', () => setOpen(list.hidden));
+    coll = h('section', { class: 'coll' }, bar, list);
+    coll.openAndShow = () => { setOpen(true); coll.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   }
-  // The collection's row, when it has more than this one part. Unlike the
-  // rest of spor it shows parts you have or have seen: it's the whole series.
-  const parts = d.collection || [];
-  let partsRow = null;
-  if (t.collection && parts.length > 1) {
-    const next = [...via, keyOf(t)];
-    const grid = h('div', { class: 'grid' });
-    for (const p of parts) {
-      const poster = posterEl(p);
-      const state = p.current ? ['here', 'You\'re here'] : PART_STATES[p.state];
-      if (state) poster.append(h('span', { class: `state ${state[0]}`, text: state[1] }));
-      const kids = [poster, cardText(p.title, h('div', { class: 'meta', text: p.year || 'Coming' }))];
-      grid.append(p.current
-        ? h('div', { class: 'card current' }, ...kids)
-        : h('a', { class: 'card', href: titleHref(p, next) }, ...kids));
-    }
-    partsRow = h('section', { class: 'parts' }, h('h2', { text: t.collection.name }), grid);
-  }
-  const collection = t.collection
-    ? h('p', { class: 'collection' }, 'Part of ', partsRow
-      ? h('button', { class: 'linkish', type: 'button', text: t.collection.name,
-        onclick: () => partsRow.scrollIntoView({ behavior: 'smooth', block: 'start' }) })
+  const partOf = t.collection
+    ? h('p', { class: 'part-of' }, 'Part of ', coll
+      ? h('button', { class: 'linkish', type: 'button', text: t.collection.name, onclick: () => coll.openAndShow() })
       : h('b', { text: t.collection.name }))
     : null;
+  const seerrLink = d.links?.seerr ? h('a', { class: 'seerr-link', href: d.links.seerr, target: '_blank', rel: 'noopener', text: 'Open in Seerr ↗' }) : null;
 
-  const hero = h('section', { class: 'hero' },
-    t.backdrop ? h('div', { class: 'backdrop', style: `background-image:url("${IMG}w1280${t.backdrop}")` }) : null,
-    h('div', { class: 'hero-in' }, posterEl(t),
-      h('div', { class: 'hero-text' },
-        h('h1', { text: t.title }),
-        h('div', { class: 'facts' }, ...facts.map((f) => h('span', { text: f }))),
-        collection,
-        t.tagline ? h('p', { class: 'tagline', text: t.tagline }) : null,
-        h('p', { class: 'overview', text: t.overview || 'No summary yet.' }),
-        actions)));
+  const titleBlock = h('div', { class: 'd-title' }, h('span', { class: `kind ${t.type}`, text: t.type === 'tv' ? 'Series' : 'Movie' }), h('h1', { text: t.title }));
+  const words = [
+    t.tagline ? h('p', { class: 'tagline', text: `“${t.tagline}”` }) : null,
+    h('p', { class: 'overview', text: t.overview || 'No summary yet.' }),
+  ];
+  const posterImg = t.poster ? h('img', { src: IMG + 'w780' + t.poster, alt: '' }) : h('div', { class: 'noimg', text: t.title });
 
-  const more = [h('h2', { text: 'More like this' })];
+  let top;
+  if (isWide) {
+    top = [
+      h('div', { class: 'detail-bar' }, backBtn, pathWrap),
+      h('div', { class: 'detail-grid' },
+        h('div', { class: 'd-poster' }, posterImg),
+        h('div', { class: 'd-info' }, titleBlock, statsBlock(t, d.scores),
+          h('div', { class: 'd-act' }, actions, partOf), ...words, seerrLink)),
+    ];
+  } else {
+    top = [
+      h('section', { class: 'd-hero' }, posterImg, backBtn, pathWrap, titleBlock),
+      h('div', { class: 'd-info' }, statsBlock(t, d.scores), actions, h('div', { class: 'd-links' }, partOf, seerrLink), ...words),
+    ];
+  }
+
+  const more = h('section', { class: 'more' }, h('div', { class: 'section-head' }, h('div', { class: 'title-row' }, h('h2', { text: 'More like this' }))));
   if (!d.recommendations.length) {
-    more.push(h('p', { class: 'lede', text: 'No new recommendations for this one: everything is in the library, watched or blocked.' }));
+    more.append(h('p', { class: 'lede more-empty', text: 'No new recommendations for this one: everything is in the library, watched or blocked.' }));
   } else {
     const grid = h('div', { class: 'grid' });
-    const next = [...via, keyOf(t)];
     for (const r of d.recommendations) {
-      const card = h('a', { class: 'card', href: titleHref(r, next) },
-        posterEl(r), cardText(r.title, h('div', { class: 'meta', text: r.year || '' })));
-      pressable(card, r, [blockItem(r, card)]);
+      const card = h('a', { class: 'card', href: onward(r) }, posterEl(r), cardText(r.title, h('div', { class: 'meta', text: r.year || '' })));
+      pressable(card, r, () => blockSheet(r, card));
       grid.append(card);
     }
-    more.push(grid);
+    more.append(grid);
   }
-  view.replaceChildren(crumbs, hero, partsRow, ...more);
+  // replaceChildren would print a missing section as the text "null".
+  view.replaceChildren(...[h('div', { class: 'detail' }, ...top), coll, more].filter(Boolean));
   document.title = `${t.title} · spor`;
+  setHeadTitle(t.title, titleBlock.querySelector('h1'));
 }
 
-// requestDialog is the advanced request, as in Seerr: a popup with the
+// Once the page's title has scrolled under the header, the header shows it
+// next to the wordmark.
+const headTitle = $('headTitle');
+let headWatch = null;
+function setHeadTitle(text, h1) {
+  window.removeEventListener('scroll', headWatch);
+  headTitle.classList.remove('show');
+  headWatch = null;
+  if (!text) return;
+  headTitle.querySelector('.txt').textContent = text;
+  headWatch = () => {
+    if (!h1.isConnected) { window.removeEventListener('scroll', headWatch); return; }
+    headTitle.classList.toggle('show', h1.getBoundingClientRect().bottom < topbar.offsetHeight);
+  };
+  window.addEventListener('scroll', headWatch, { passive: true });
+  headWatch();
+}
+
+// requestDialog is the advanced request, as in Seerr: a sheet with the
 // quality profile and root folder, pre-set to the server's defaults. A field
 // left on its default isn't sent, so Seerr decides as for a plain request.
 function requestDialog(t, o, send) {
@@ -459,11 +587,13 @@ function requestDialog(t, o, send) {
     return h('label', {}, h('span', { text: label }), s);
   };
   const go = h('button', { class: 'btn', type: 'button', text: 'Request' });
-  const dlg = h('dialog', { class: 'dialog', 'aria-label': `Request ${t.title}` },
+  const dlg = sheet(`Request ${t.title}`,
     h('div', { class: 'dialog-head' },
       t.poster ? h('img', { src: IMG + 'w154' + t.poster, alt: '' }) : null,
       h('div', {}, h('div', { class: 'dialog-kicker', text: t.type === 'tv' ? 'Request series' : 'Request movie' }),
-        h('div', { class: 'dialog-title', text: t.title }))),
+        h('div', { class: 'dialog-title', text: t.title }),
+        // A series is always requested in full.
+        t.type === 'tv' ? h('div', { class: 'dialog-sub', text: 'All seasons' }) : null)),
     h('div', { class: 'dialog-body' },
       select('Quality profile', o.profiles.map((p) => [p.id, p.name, p.id === o.defaultProfile]), (v) => {
         if (Number(v) === o.defaultProfile) delete choice.profileId; else choice.profileId = Number(v);
@@ -478,11 +608,18 @@ function requestDialog(t, o, send) {
     if (await send(choice)) dlg.close();
     else go.disabled = false;
   });
-  // A tap on the dimmed backdrop (the dialog itself, outside its content) cancels.
+}
+
+// sheet opens a modal: a sheet rising from the bottom on a phone, a centred
+// card on desktop. A tap on the dimmed backdrop (the dialog itself, outside
+// its content) closes it; it removes itself once closed.
+function sheet(label, ...content) {
+  const dlg = h('dialog', { class: 'dialog', 'aria-label': label }, h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }), ...content);
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
   dlg.addEventListener('close', () => dlg.remove());
   document.body.append(dlg);
   dlg.showModal();
+  return dlg;
 }
 
 // ---------- Library ----------
@@ -542,7 +679,10 @@ function thumb(dir) {
 function libraryCard(it) {
   const poster = posterEl(it);
   const variant = it.removed ? ' removed' : it.watched ? '' : ' unwatched';
-  const card = h('div', { class: 'card' + variant }, poster, cardText(it.title, h('div', { class: 'meta', text: it.year || '' })));
+  // The poster opens the title; the path starts here, in Library.
+  const card = h('div', { class: 'card' + variant },
+    h('a', { class: 'poster-link', href: titlePath(it, { root: 'library' }), 'aria-label': it.title }, poster),
+    cardText(it.title, h('div', { class: 'meta', text: it.year || '' })));
   if (!it.watched) {
     poster.append(h('div', { class: 'banner', text: 'NOT WATCHED' }));
     return card;

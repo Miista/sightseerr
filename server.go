@@ -26,6 +26,7 @@ type seerrAPI interface {
 	Details(ctx context.Context, k Key) (Details, error)
 	Recommendations(ctx context.Context, k Key) ([]Title, error)
 	Request(ctx context.Context, asUser int, k Key, ch Choice) error
+	Ratings(ctx context.Context, k Key) (Ratings, error)
 	RequestOptions(ctx context.Context, mt MediaType) (RequestOptions, error)
 	CollectionParts(ctx context.Context, id int) ([]Title, error)
 }
@@ -235,29 +236,41 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, errors.New("no such title"))
 		return
 	}
-	trail := parseTrail(r.URL.Query().Get("via"))
+	// The path: titles opened before this one (via) and, after jumping back,
+	// the ones that were opened after it (ahead). Both travel in the URL.
+	q := r.URL.Query()
+	trail, ahead := parseTrail(q.Get("via")), parseTrail(q.Get("ahead"))
 	ctx := r.Context()
 
 	var (
-		wg      sync.WaitGroup
-		d       Details
-		dErr    error
-		recs    []Title
-		recsErr error
-		steps   = make([]Step, len(trail))
+		wg       sync.WaitGroup
+		d        Details
+		dErr     error
+		recs     []Title
+		recsErr  error
+		scores   Ratings
+		scoreErr error
+		steps    = make([]Step, len(trail))
+		later    = make([]Step, len(ahead))
 	)
-	wg.Add(2)
+	wg.Add(3)
 	go func() { defer wg.Done(); d, dErr = s.seerr.Details(ctx, k) }()
 	go func() { defer wg.Done(); recs, recsErr = s.seerr.Recommendations(ctx, k) }()
+	go func() { defer wg.Done(); scores, scoreErr = s.seerr.Ratings(ctx, k) }()
+	name := func(out []Step, i int, t Key) {
+		defer wg.Done()
+		out[i] = Step{Type: t.Type, ID: t.ID}
+		if td, err := s.seerr.Details(ctx, t); err == nil {
+			out[i].Title = td.Title.Title
+		}
+	}
 	for i, t := range trail {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			steps[i] = Step{Type: t.Type, ID: t.ID}
-			if td, err := s.seerr.Details(ctx, t); err == nil {
-				steps[i].Title = td.Title.Title
-			}
-		}()
+		go name(steps, i, t)
+	}
+	for i, t := range ahead {
+		wg.Add(1)
+		go name(later, i, t)
 	}
 	wg.Wait()
 	if dErr != nil {
@@ -266,6 +279,9 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 	}
 	if recsErr != nil {
 		s.log.Warn().Msg(fmt.Sprintf("no recommendations for %s: %v", k, recsErr))
+	}
+	if scoreErr != nil {
+		s.log.Debug().Msg(fmt.Sprintf("no ratings for %s: %v", k, scoreErr))
 	}
 
 	ex, seeds, ratings, err := s.exclusions(su.ID)
@@ -286,15 +302,26 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 		}
 		names[sd.Key] = sd.Title
 	}
-	// A step Seerr couldn't name is often the seed itself, which spor knows.
-	for i := range steps {
-		if steps[i].Title == "" {
-			steps[i].Title = names[Key{steps[i].Type, steps[i].ID}]
+	// A step Seerr couldn't name may be a seed, which spor knows.
+	for _, ss := range [][]Step{steps, later} {
+		for i := range ss {
+			if ss[i].Title == "" {
+				ss[i].Title = names[Key{ss[i].Type, ss[i].ID}]
+			}
 		}
 	}
 	ex.own[k] = true // never recommend the page's own title
+	// The step that led here: the previous title, or, straight from
+	// Discover, the seed the card was shown for (?seed=; it isn't part of
+	// the path you see).
+	from, ok := Key{}, false
 	if len(trail) > 0 {
-		if err := s.store.AddEdge(su.ID, trail[len(trail)-1], k); err != nil {
+		from, ok = trail[len(trail)-1], true
+	} else if sk, sok := parseKey(q.Get("seed")); sok {
+		from, ok = sk, true
+	}
+	if ok {
+		if err := s.store.AddEdge(su.ID, from, k); err != nil {
 			s.log.Warn().Msg(fmt.Sprintf("could not record the step to %s: %v", k, err))
 		}
 	}
@@ -319,12 +346,26 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 			parts = append(parts, collectionPart{Title: t, State: partState(t, seedOf[t.Key()]), Current: t.Key() == k})
 		}
 	}
+	// "More like this" leaves out the collection (it has its own section)
+	// and shows at most a page's worth.
+	inCollection := map[Key]bool{}
+	for _, p := range parts {
+		inCollection[p.Key()] = true
+	}
+	more := []Title{}
+	for _, t := range ex.filter(recs) {
+		if !inCollection[t.Key()] && len(more) < maxMoreLikeThis {
+			more = append(more, t)
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"title": d, "watched": watched, "requested": requested, "rating": ratings[k],
+		"title": d, "watched": watched, "requested": requested, "rating": ratings[k], "scores": scores,
 		"requestable":     !inLibrary(d.Status) && !requested,
-		"recommendations": ex.filter(recs), "trail": steps, "links": links, "collection": parts,
+		"recommendations": more, "trail": steps, "ahead": later, "links": links, "collection": parts,
 	})
 }
+
+const maxMoreLikeThis = 8
 
 // collectionPart is one movie of the page's collection. Unlike everywhere
 // else, parts the person has or has seen are shown too: it's the whole

@@ -29,6 +29,7 @@ type fakeSeerr struct {
 	missing map[Key]bool // Details fails for these
 	options RequestOptions
 	parts   map[int][]Title // collection ID → parts
+	scores  map[Key]Ratings
 
 	mu       sync.Mutex
 	requests []requested
@@ -59,6 +60,10 @@ func (f *fakeSeerr) RequestOptions(context.Context, MediaType) (RequestOptions, 
 
 func (f *fakeSeerr) CollectionParts(_ context.Context, id int) ([]Title, error) {
 	return f.parts[id], nil
+}
+
+func (f *fakeSeerr) Ratings(_ context.Context, k Key) (Ratings, error) {
+	return f.scores[k], nil
 }
 
 type harness struct {
@@ -376,6 +381,51 @@ func TestCollectionShowsEveryPartWithItsState(t *testing.T) {
 	// Parts never leak into "More like this" through the collection.
 	if _, out := h.do(t, "GET", "/api/title/tv/1", ""); out["collection"] != nil {
 		t.Errorf("a show got collection parts: %v", out["collection"])
+	}
+}
+
+func TestTitlePathAheadSeedAndMoreLikeThis(t *testing.T) {
+	h := newHarness(t)
+	as(t, "alice@example.com")
+	page := Key{Movie, 100}
+	h.seerr.details[page] = Details{Title: Title{Type: Movie, ID: 100, Title: "Page"}, Collection: &Collection{ID: 9, Name: "Saga"}}
+	h.seerr.parts = map[int][]Title{9: {mv(100, "Page"), mv(1, "Sequel")}}
+	var recs []Title
+	recs = append(recs, mv(1, "Sequel")) // in the collection: not in "More like this"
+	for i := 0; i < 12; i++ {
+		recs = append(recs, mv(200+i, fmt.Sprintf("Rec %d", i)))
+	}
+	h.seerr.recs[page] = recs
+	h.seerr.scores = map[Key]Ratings{page: {RTCritics: 86, IMDb: 8.8}}
+	h.seerr.details[Key{Movie, 7}] = Details{Title: Title{Type: Movie, ID: 7, Title: "Later one"}}
+
+	_, out := h.do(t, "GET", "/api/title/movie/100?ahead=movie:7&seed=movie:55", "")
+	more := out["recommendations"].([]any)
+	if len(more) != maxMoreLikeThis {
+		t.Errorf("%d recommendations, want %d", len(more), maxMoreLikeThis)
+	}
+	for _, m := range more {
+		if m.(map[string]any)["title"] == "Sequel" {
+			t.Error("a collection part is also in More like this")
+		}
+	}
+	if a := out["ahead"].([]any); len(a) != 1 || a[0].(map[string]any)["title"] != "Later one" {
+		t.Errorf("ahead = %v", a)
+	}
+	if s := out["scores"].(map[string]any); s["rtCritics"] != float64(86) || s["imdb"] != 8.8 {
+		t.Errorf("scores = %v", s)
+	}
+	// Straight from Discover (no path yet) the step is recorded from the seed.
+	var n int
+	h.store.db.QueryRow(`SELECT COUNT(*) FROM edges WHERE src = 'movie:55' AND dst = 'movie:100'`).Scan(&n)
+	if n != 1 {
+		t.Errorf("seed edge recorded %d times, want 1", n)
+	}
+	// With a path, the step comes from the last title on it, not the seed.
+	h.do(t, "GET", "/api/title/movie/100?via=movie:7&seed=movie:55", "")
+	h.store.db.QueryRow(`SELECT COUNT(*) FROM edges WHERE src = 'movie:55'`).Scan(&n)
+	if n != 1 {
+		t.Errorf("seed used although the path had a title (%d edges from it)", n)
 	}
 }
 

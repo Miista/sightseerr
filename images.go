@@ -29,7 +29,7 @@ type imageStore struct {
 // The sizes the page asks for, and what a TMDb file name looks like. Nothing
 // else is fetched: the endpoint can't be pointed at another URL or file.
 var (
-	imageSizes = map[string]bool{"w154": true, "w342": true, "w1280": true}
+	imageSizes = map[string]bool{"w154": true, "w342": true, "w780": true, "w1280": true}
 	imageName  = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}\.(jpg|png|webp)$`)
 )
 

@@ -42,6 +42,7 @@ var (
 	mu      sync.Mutex
 	status  = map[string]int{"movie:27205": 5, "movie:604": 5, "movie:218": 5, "tv:1399": 3} // Inception (watched), Reloaded and The Terminator (not) are had; GoT requested
 	reqs    = []string{"tv:1399"}
+	matrix  = []int{604, 605, 624860} // the made-up "Matrix Collection" (The Matrix itself is watched)
 	watched = []map[string]any{
 		{"Id": "m1", "Name": "The Matrix", "Type": "Movie", "ProviderIds": map[string]string{"Tmdb": "603"}, "UserData": map[string]any{"LastPlayedDate": "2026-11-10T20:00:00Z"}},
 		{"Id": "m2", "Name": "Interstellar", "Type": "Movie", "ProviderIds": map[string]string{"Tmdb": "157336"}, "UserData": map[string]any{"LastPlayedDate": "2026-11-15T20:00:00Z"}},
@@ -141,6 +142,15 @@ func seerr(w http.ResponseWriter, r *http.Request) {
 		mu.Unlock()
 		w.WriteHeader(http.StatusCreated)
 		send(w, map[string]any{"id": 1})
+	case len(parts) == 2 && parts[0] == "collection":
+		// One made-up collection, for the title page's collection section.
+		var res []title
+		for _, id := range matrix {
+			if t, ok := byKey[fmt.Sprintf("movie:%d", id)]; ok {
+				res = append(res, withStatus(t))
+			}
+		}
+		send(w, map[string]any{"id": 2344, "name": "The Matrix Collection", "parts": res})
 	case len(parts) == 2:
 		t, ok := byKey[parts[0]+":"+parts[1]]
 		if !ok {
@@ -148,7 +158,23 @@ func seerr(w http.ResponseWriter, r *http.Request) {
 			send(w, map[string]string{"message": "Unable to retrieve " + parts[0]})
 			return
 		}
-		send(w, withStatus(t))
+		out := withStatus(t)
+		for _, id := range matrix {
+			if parts[0] == "movie" && t.id() == id {
+				out["collection"] = map[string]any{"id": 2344, "name": "The Matrix Collection"}
+			}
+		}
+		send(w, out)
+	case len(parts) == 3 && (parts[2] == "ratingscombined" || parts[2] == "ratings"):
+		// Made-up scores, derived from the ID so they differ per title.
+		id, _ := strconv.Atoi(parts[1])
+		rt := map[string]any{"url": "https://www.rottentomatoes.com/", "criticsScore": 40 + id%60, "audienceScore": 50 + id%50,
+			"criticsRating": map[bool]string{true: "Rotten", false: "Fresh"}[id%60 < 20], "audienceRating": "Upright"}
+		if parts[2] == "ratings" {
+			send(w, rt)
+			return
+		}
+		send(w, map[string]any{"rt": rt, "imdb": map[string]any{"url": "https://www.imdb.com/", "criticsScore": float64(50+id%50) / 10}})
 	case len(parts) == 3:
 		// Deterministic "recommendations": 14 titles of the same type, chosen by the ID.
 		id, _ := strconv.Atoi(parts[1])

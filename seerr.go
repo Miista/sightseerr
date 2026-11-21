@@ -306,6 +306,13 @@ func (c *seerrClient) do(ctx context.Context, method, path string, asUser int, b
 			Message string `json:"message"`
 		}
 		json.NewDecoder(io.LimitReader(resp.Body, 64*1024)).Decode(&e)
+		if resp.StatusCode == http.StatusNotFound {
+			msg := e.Message
+			if msg == "" {
+				msg = fmt.Sprintf("%s %s answered %s", method, pathOnly(path), resp.Status)
+			}
+			return seerrNotFound{msg}
+		}
 		if e.Message != "" {
 			return fmt.Errorf("%w: %s", errSeerr, e.Message)
 		}
@@ -440,6 +447,82 @@ func (c *seerrClient) Recommendations(ctx context.Context, k Key) ([]Title, erro
 		return titles, nil
 	}
 	return nil, nil
+}
+
+// Ratings are the outside scores Seerr shows for a title. A zero score means
+// the source has none; shows only get Rotten Tomatoes (Seerr has no IMDb
+// score for TV). TMDb's own score comes with the details, not from here.
+type Ratings struct {
+	RTCritics        int     `json:"rtCritics,omitempty"`        // percent
+	RTCriticsRotten  bool    `json:"rtCriticsRotten,omitempty"`  // Seerr: rating "Rotten"
+	RTAudience       int     `json:"rtAudience,omitempty"`       // percent
+	RTAudienceRotten bool    `json:"rtAudienceRotten,omitempty"` // Seerr: rating "Spilled"
+	RTURL            string  `json:"rtUrl,omitempty"`
+	IMDb             float64 `json:"imdb,omitempty"` // out of 10
+	IMDbURL          string  `json:"imdbUrl,omitempty"`
+}
+
+type seerrRT struct {
+	URL            string `json:"url"`
+	CriticsRating  string `json:"criticsRating"`
+	CriticsScore   int    `json:"criticsScore"`
+	AudienceRating string `json:"audienceRating"`
+	AudienceScore  int    `json:"audienceScore"`
+}
+
+func (rt seerrRT) into(r *Ratings) {
+	r.RTCritics, r.RTCriticsRotten = rt.CriticsScore, rt.CriticsRating == "Rotten"
+	r.RTAudience, r.RTAudienceRotten = rt.AudienceScore, rt.AudienceRating == "Spilled"
+	r.RTURL = rt.URL
+}
+
+// Ratings asks Seerr for a title's outside scores. Seerr answers 404 when a
+// source has nothing for the title, which reads as no ratings, not an error.
+func (c *seerrClient) Ratings(ctx context.Context, k Key) (Ratings, error) {
+	var r Ratings
+	if k.Type == TV {
+		var rt seerrRT
+		if err := c.do(ctx, http.MethodGet, fmt.Sprintf("/tv/%d/ratings", k.ID), 0, nil, &rt); err != nil {
+			return r, notFoundIsEmpty(err)
+		}
+		rt.into(&r)
+		return r, nil
+	}
+	var out struct {
+		RT   *seerrRT `json:"rt"`
+		IMDb *struct {
+			URL          string  `json:"url"`
+			CriticsScore float64 `json:"criticsScore"`
+		} `json:"imdb"`
+	}
+	if err := c.do(ctx, http.MethodGet, fmt.Sprintf("/movie/%d/ratingscombined", k.ID), 0, nil, &out); err != nil {
+		return r, notFoundIsEmpty(err)
+	}
+	if out.RT != nil {
+		out.RT.into(&r)
+	}
+	if out.IMDb != nil {
+		r.IMDb, r.IMDbURL = out.IMDb.CriticsScore, out.IMDb.URL
+	}
+	return r, nil
+}
+
+// errSeerrNotFound marks a 404 from Seerr; seerrNotFound carries Seerr's own
+// message with it, and is both errSeerr and errSeerrNotFound.
+var errSeerrNotFound = errors.New("not found")
+
+type seerrNotFound struct{ msg string }
+
+func (e seerrNotFound) Error() string { return errSeerr.Error() + ": " + e.msg }
+func (e seerrNotFound) Is(target error) bool {
+	return target == errSeerr || target == errSeerrNotFound
+}
+
+func notFoundIsEmpty(err error) error {
+	if errors.Is(err, errSeerrNotFound) {
+		return nil
+	}
+	return err
 }
 
 // Search is Seerr's search (first page). Besides words it takes "tvdb:123",

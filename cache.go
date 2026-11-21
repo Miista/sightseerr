@@ -91,6 +91,11 @@ type cachedSeerr struct {
 	details *ttlCache[Details]
 	options *ttlCache[RequestOptions] // keyed by media type, ID 0
 	parts   *ttlCache[[]Title]        // collection parts, keyed by {movie, collection ID}
+	ratings *ttlCache[Ratings]
+}
+
+func (c *cachedSeerr) Ratings(ctx context.Context, k Key) (Ratings, error) {
+	return c.ratings.get(ctx, k, c.seerrClient.Ratings)
 }
 
 func (c *cachedSeerr) CollectionParts(ctx context.Context, id int) ([]Title, error) {
@@ -105,6 +110,7 @@ func newCachedSeerr(c *seerrClient) *cachedSeerr {
 		// Short: a profile added in Radarr should show up soon.
 		options: newTTLCache[RequestOptions](10 * time.Minute),
 		parts:   newTTLCache[[]Title](24 * time.Hour),
+		ratings: newTTLCache[Ratings](24 * time.Hour),
 	}
 }
 

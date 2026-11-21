@@ -8,8 +8,11 @@ trail that led you there. No AI: recommendations are TMDb's, through Seerr.
 - **Discover**: recommendations for what you watched (Jellyfin) and requested
   (Seerr), ranked by weight. Never shows what's in the library, on its way,
   watched, requested or blocked. Long-press (or right-click) a poster to block it.
-- **Title page**: overview, Request (made in Seerr **as you**, so Seerr's own
-  permissions and auto-approval apply), and more like it.
+- **Title page**: overview, Rotten Tomatoes / IMDb / TMDB scores (from Seerr),
+  Request (made in Seerr **as you**, so Seerr's own permissions and
+  auto-approval apply; quality profile and root folder for those Seerr lets
+  choose), the collection it belongs to, and more like it. The **Path** lists
+  the titles you tapped through, so you can jump back (and forward again).
 - **Library**: everything in the library; rate what you've watched 👍/👎.
   Unwatched titles are greyed out ("Not watched") and can't be rated.
 - **Blocked**: unblock.
