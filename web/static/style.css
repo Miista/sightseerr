@@ -1,0 +1,245 @@
+/* Palette and fonts follow hent. Fonts are self-hosted (OFL-1.1, see
+   vendor/fonts/LICENSE-*.txt) so the page makes no requests to Google. */
+@font-face { font-family: 'Bricolage Grotesque'; font-weight: 200 800; font-display: swap; src: url(/vendor/fonts/bricolage-grotesque-latin.woff2) format('woff2'); }
+@font-face { font-family: 'DM Sans'; font-weight: 100 1000; font-display: swap; src: url(/vendor/fonts/dm-sans-latin.woff2) format('woff2'); }
+
+:root {
+  color-scheme: dark;
+  --accent: oklch(0.70 0.22 296);
+  --page: #07070a;
+  --bg: #0b0b10;
+  --text: #f2f1f6;
+  --muted: #8f8da0;
+  --faint: #6a6878;
+  --raised: #16161f;
+  --raised-line: #2a2a37;
+  --ink: #0b0b10;
+  --red: oklch(0.75 0.17 25);
+  --green: #5ee38f;
+  --display: 'Bricolage Grotesque', sans-serif;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'DM Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: #b9a6ff; text-decoration: none; }
+a:hover { color: #d9cfff; }
+button { font: inherit; color: inherit; }
+@keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+
+.bg-glow { position: fixed; inset: 0 0 auto 0; height: 70vh; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 90% 70% at 50% 0%, oklch(0.58 0.29 288 / .22) 0%, oklch(0.58 0.29 288 / .08) 40%, transparent 80%); }
+
+/* Header */
+/* The glass, shared by the title bar, the phone's tab bar and the sticky
+   section headers. Put straight on each element: that is what Safari renders
+   reliably. (Nothing fixed may sit inside a glass element, since the blur
+   makes it the containing block; that's why the phone's tab bar is its own
+   element, not the header's tabs moved.) */
+.top, .bottom-bar, .section-head { background: rgba(11,11,16,.72); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); }
+.top {
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 18px;
+  padding: 12px max(16px, env(safe-area-inset-left)); padding-top: max(12px, env(safe-area-inset-top));
+  border-bottom: 1px solid #1a1a23;
+}
+.brand { display: flex; align-items: center; gap: 9px; color: var(--text); }
+.brand:hover { color: var(--text); }
+.logo { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--accent); }
+.brand-name { font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -.02em; }
+.tabs { display: flex; gap: 4px; flex: 1; }
+.tabs a { padding: 6px 12px; border-radius: 999px; color: var(--muted); font-size: 14px; font-weight: 500; }
+.tabs a:hover { color: var(--text); }
+.tabs a.on { color: var(--text); background: var(--raised); box-shadow: inset 0 0 0 1px var(--raised-line); }
+.who { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
+.tab-icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Phones: the header's tabs give way to a bottom bar, in the thumb zone. */
+.bottom-bar { display: none; }
+@media (max-width: 640px) {
+  .top { justify-content: space-between; }
+  .top .tabs, .who-name { display: none; }
+  .bottom-bar {
+    display: flex; position: fixed; z-index: 20; left: 0; right: 0; bottom: 0;
+    padding: 6px 8px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid #1a1a23;
+  }
+  .bottom-bar a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0; border-radius: 12px;
+    font-size: 11px; font-weight: 500; color: var(--muted); }
+  .bottom-bar a.on { color: var(--accent); }
+}
+
+main { padding: 18px max(16px, env(safe-area-inset-left)) 60px; max-width: 1400px; margin: 0 auto; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: -.02em; margin: 6px 0 4px; }
+.lede { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+.note { color: var(--muted); padding: 40px 0; text-align: center; }
+.note strong { color: var(--text); display: block; font-size: 17px; margin-bottom: 6px; }
+.foot { margin: 36px 0 0; text-align: center; font-size: 13px; color: var(--faint); }
+
+/* Poster grid */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 18px 14px; }
+@media (min-width: 900px) { .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } }
+/* A column, so whatever sits at its foot (rating, Unblock) lines up across a
+   row however many lines the title takes; the grid stretches cards in a row
+   to the same height. */
+.card { position: relative; display: flex; flex-direction: column; color: var(--text); -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.card:hover { color: var(--text); }
+.poster { position: relative; aspect-ratio: 2 / 3; border-radius: var(--radius); overflow: hidden; background: var(--raised);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.35); transition: transform .15s, box-shadow .15s; }
+.poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.poster .noimg { position: absolute; inset: 0; display: grid; place-items: center; padding: 10px; text-align: center; color: var(--faint); font-size: 13px; }
+a.card:hover .poster { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 12px 30px rgba(0,0,0,.45); }
+.card .name { margin-top: 8px; font-size: 14px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card .meta { margin-top: 2px; font-size: 12px; color: var(--muted); }
+.card .because { margin-top: 3px; font-size: 12px; color: var(--faint); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card .because b { color: var(--muted); font-weight: 500; }
+/* Type pill, as in Seerr: blue for movies, purple for series. */
+.kind { position: absolute; top: 8px; left: 8px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  color: #fff; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.kind.movie { background: rgb(37 99 235 / .85); border: 1px solid rgb(96 165 250 / .7); }
+.kind.tv { background: rgb(147 51 234 / .85); border: 1px solid rgb(192 132 252 / .7); }
+
+/* Library */
+.card.unwatched .poster img { filter: grayscale(1) brightness(.45); }
+.card.unwatched .name { color: var(--muted); }
+.banner { position: absolute; left: -30%; right: -30%; top: 44%; transform: rotate(-24deg); padding: 6px 0; text-align: center;
+  background: rgba(11,11,16,.82); color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  border-top: 1px solid var(--raised-line); border-bottom: 1px solid var(--raised-line); }
+.rate { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
+.card > .btn { margin-top: auto !important; } /* Unblock, same idea */
+/* Rating: line icons, grey when off; on, filled in green (up) or red (down). */
+.thumb { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; }
+.lede .thumb { width: 15px; height: 15px; color: var(--text); }
+.rate button { flex: 1; display: grid; place-items: center; padding: 7px 0; border-radius: 8px; border: 0; cursor: pointer; color: var(--muted);
+  background: var(--raised); box-shadow: inset 0 0 0 1px var(--raised-line); transition: color .12s, background .12s; }
+.rate button:hover { color: var(--text); }
+.rate button.on.up { color: var(--green); background: oklch(0.45 0.12 150 / .25); box-shadow: inset 0 0 0 1px oklch(0.6 0.15 150 / .6); }
+.rate button.on.down { color: var(--red); background: oklch(0.45 0.14 25 / .25); box-shadow: inset 0 0 0 1px oklch(0.65 0.17 25 / .6); }
+.rate button.on .thumb { fill: currentColor; fill-opacity: .25; }
+/* Library sections: the header sticks under the title bar while its section
+   scrolls past, then the next one pushes it away. */
+/* A sticky header is held inside its section's content box (the section's
+   padding and the header's own margins don't count), so all the spacing sits
+   on the grid: the section's content then ends exactly where the next header
+   starts, and the old header leaves only as the new one pushes it. */
+.lib-section > .grid { margin-top: 14px; padding-bottom: 26px; }
+/* A jump lands with the section's header just under the title bar. */
+.lib-section { scroll-margin-top: var(--topbar, 60px); }
+.section-head { position: sticky; top: var(--topbar, 60px); z-index: 4; display: flex; align-items: baseline; gap: 8px;
+  margin: 0 calc(-1 * max(16px, env(safe-area-inset-left))); padding: 10px max(16px, env(safe-area-inset-left));
+  border-bottom: 1px solid #1a1a23; } /* glass: see .top */
+.section-head .count { font-family: 'DM Sans', system-ui, sans-serif; font-size: 13px; font-weight: 500; color: var(--faint); }
+.filters { display: flex; gap: 6px; margin: 0 0 16px; }
+.chip { padding: 5px 12px; border-radius: 999px; border: 0; cursor: pointer; font-size: 13px; color: var(--muted); background: var(--raised); box-shadow: inset 0 0 0 1px var(--raised-line); }
+.chip.on { color: var(--ink); background: var(--accent); box-shadow: none; font-weight: 600; }
+
+/* Title page: the trail dropdown. */
+.trail { position: relative; display: inline-block; margin-bottom: 14px; max-width: 100%; z-index: 5; }
+.trail summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 10px; border-radius: 999px; cursor: pointer;
+  background: var(--raised); box-shadow: inset 0 0 0 1px var(--raised-line); font-size: 13px; color: var(--muted); max-width: 100%; }
+.trail summary::-webkit-details-marker { display: none; }
+.trail summary:hover, .trail[open] summary { color: var(--text); }
+.trail-icon { flex: none; width: 16px; height: 16px; fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.trail-prev { color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.trail-count { flex: none; color: var(--faint); }
+.trail-count::before { content: '· '; }
+.trail-caret { flex: none; font-size: 11px; transition: transform .15s; }
+.trail[open] .trail-caret { transform: rotate(180deg); }
+.trail ol { position: absolute; top: calc(100% + 6px); left: 0; min-width: 260px; max-width: min(380px, calc(100vw - 32px)); margin: 0; padding: 10px 14px;
+  list-style: none; border-radius: 14px; background: #1b1b25; box-shadow: 0 0 0 1px var(--raised-line), 0 14px 40px rgba(0,0,0,.55); }
+/* Dots joined by a line: the path, top to bottom. */
+.trail li { position: relative; padding: 7px 0 7px 22px; font-size: 14px; }
+.trail li::before { content: ''; position: absolute; left: 4px; top: 13px; width: 8px; height: 8px; border-radius: 50%; background: var(--raised-line); }
+.trail li:not(:last-child)::after { content: ''; position: absolute; left: 7.5px; top: 23px; bottom: -11px; width: 1px; background: var(--raised-line); }
+.trail li a { color: var(--muted); display: block; }
+.trail li a:hover { color: var(--text); }
+.trail li.here { color: var(--text); font-weight: 600; }
+.trail li.here::before { background: var(--accent); box-shadow: 0 0 0 3px oklch(0.70 0.22 296 / .25); }
+
+/* Title page */
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 13px; color: var(--faint); margin-bottom: 14px; }
+.crumbs a { color: var(--muted); }
+.crumbs a:hover { color: var(--text); }
+.crumbs .sep { color: var(--faint); }
+.crumbs .here { color: var(--text); font-weight: 500; }
+.hero { position: relative; border-radius: 16px; overflow: hidden; background: var(--raised); margin-bottom: 28px; }
+.hero .backdrop { position: absolute; inset: 0; background-size: cover; background-position: center 20%; opacity: .35; }
+.hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(11,11,16,.95) 0%, rgba(11,11,16,.7) 55%, rgba(11,11,16,.35) 100%); }
+.hero-in { position: relative; z-index: 1; display: flex; gap: 24px; padding: 24px; }
+.hero .poster { width: 200px; flex: none; }
+.hero-text { min-width: 0; }
+.hero h1 { font-size: 32px; margin-top: 0; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 14px; margin-bottom: 10px; }
+.collection { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+.collection b { color: var(--text); font-weight: 500; }
+.linkish { border: 0; background: none; padding: 0; cursor: pointer; color: #b9a6ff; font: inherit; }
+.linkish:hover { color: #d9cfff; }
+
+/* Collection row: every part, with where it stands for you. */
+.parts { margin-bottom: 32px; scroll-margin-top: 80px; }
+.state { position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 4px 0; border-radius: 8px; text-align: center; font-size: 11px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; color: #fff; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.state.library { background: rgb(22 163 74 / .85); }
+.state.requested { background: rgb(202 138 4 / .85); }
+.state.watched { background: rgb(71 85 105 / .85); }
+.state.here { background: rgba(11,11,16,.8); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text); }
+.card.current .poster { box-shadow: 0 0 0 2px var(--accent), 0 8px 24px rgba(0,0,0,.35); }
+a.btn { display: inline-block; text-decoration: none; }
+a.btn.ghost:hover { color: var(--text); }
+.tagline { font-style: italic; color: var(--muted); margin: 0 0 10px; }
+.overview { line-height: 1.55; max-width: 70ch; margin: 0 0 18px; color: #d8d6e2; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { padding: 10px 20px; border-radius: 999px; border: 0; cursor: pointer; font-weight: 700; background: var(--accent); color: var(--ink); }
+.btn:disabled { cursor: default; background: var(--raised); color: var(--muted); box-shadow: inset 0 0 0 1px var(--raised-line); }
+.btn.done { background: oklch(0.45 0.12 150 / .45); color: var(--green); box-shadow: inset 0 0 0 1px oklch(0.6 0.15 150 / .6); }
+.btn.ghost { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--raised-line); font-weight: 500; }
+/* Advanced request popup, as in Seerr. Padding sits on the children, so a
+   click that lands on the dialog itself is a click on the backdrop. */
+.dialog { padding: 0; border: 0; border-radius: 16px; width: min(440px, calc(100vw - 32px)); color: var(--text); background: #15151d;
+  box-shadow: 0 0 0 1px var(--raised-line), 0 24px 60px rgba(0,0,0,.6); }
+.dialog::backdrop { background: rgba(4,4,8,.7); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.dialog-head { display: flex; gap: 14px; align-items: center; padding: 18px 18px 6px; }
+.dialog-head img { width: 54px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+.dialog-kicker { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+.dialog-title { font-family: var(--display); font-weight: 700; font-size: 20px; line-height: 1.2; margin-top: 2px; }
+.dialog-body { display: grid; gap: 14px; padding: 14px 18px; }
+.dialog-body label { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
+.dialog-body select { font: inherit; font-size: 15px; color: var(--text); background: var(--raised); border: 0; border-radius: 10px; padding: 11px 12px; box-shadow: inset 0 0 0 1px var(--raised-line); }
+.dialog-body select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dialog-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 6px 18px 18px; }
+@media (max-width: 640px) {
+  /* A sheet from the bottom, in the thumb zone. */
+  .dialog { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .dialog-foot .btn { flex: 1; padding: 13px 0; }
+}
+h2 { font-family: var(--display); font-weight: 600; font-size: 19px; margin: 0 0 14px; }
+@media (max-width: 640px) {
+  .hero-in { flex-direction: column; padding: 18px; }
+  .hero .poster { width: 140px; }
+  .hero h1 { font-size: 25px; }
+}
+
+/* Skeletons: the layout's shape, pulsing, until the data is in. */
+.skel { background: var(--raised); border-radius: 6px; animation: pulse 1.4s ease-in-out infinite; }
+.skel.poster { box-shadow: none; }
+.skel.line { height: 12px; margin-top: 9px; width: 80%; }
+.skel.line.short { width: 50%; margin-top: 6px; }
+.skel.h1 { height: 30px; width: 55%; margin-bottom: 14px; }
+.skel.para { height: 12px; margin-bottom: 8px; }
+
+/* Context menu and toast */
+.menu { position: fixed; z-index: 50; min-width: 180px; padding: 6px; border-radius: 12px; background: #1b1b25; box-shadow: 0 0 0 1px var(--raised-line), 0 14px 40px rgba(0,0,0,.55); }
+.menu .head { padding: 6px 10px 8px; font-size: 12px; color: var(--faint); border-bottom: 1px solid var(--raised-line); margin-bottom: 4px; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu button { display: block; width: 100%; text-align: left; padding: 9px 10px; border: 0; border-radius: 8px; background: none; cursor: pointer; font-size: 14px; }
+.menu button:hover, .menu button:focus-visible { background: var(--raised); outline: none; }
+.menu button.danger { color: var(--red); }
+.toast { position: fixed; z-index: 60; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 14px; align-items: center;
+  padding: 10px 16px; border-radius: 12px; background: #1b1b25; box-shadow: 0 0 0 1px var(--raised-line), 0 14px 40px rgba(0,0,0,.55); font-size: 14px; max-width: calc(100vw - 32px); }
+.toast button { border: 0; background: none; color: #b9a6ff; font-weight: 700; cursor: pointer; padding: 0; }
+.toast.error { box-shadow: 0 0 0 1px oklch(0.65 0.17 25 / .6), 0 14px 40px rgba(0,0,0,.55); }
+
+/* Phones: room for the bottom tab bar. Last in the file so it beats the
+   general main and .toast rules above. */
+@media (max-width: 640px) {
+  main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+}

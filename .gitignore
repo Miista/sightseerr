@@ -1,0 +1,7 @@
+dist/
+/spor
+.coverage
+*.db
+.demo.env
+.env
+.DS_Store
