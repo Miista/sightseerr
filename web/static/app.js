@@ -306,7 +306,7 @@ function toast(msg, opts = {}) {
 // ---------- Discover ----------
 
 async function renderWall(seq) {
-  view.replaceChildren(...header('Discover', 'New to you, because of what you\'ve watched and requested.'), gridSkeleton(18));
+  view.replaceChildren(...header('Discover', 'New to you, because of what you\'ve watched, requested and starred.'), gridSkeleton(18));
   let data;
   try { data = await api('GET', '/api/wall'); } catch (err) { if (seq === renderSeq) showNote('Could not load suggestions', err.message); return; }
   if (seq !== renderSeq) return;
@@ -333,7 +333,7 @@ async function renderWall(seq) {
     pressable(card, c, () => blockSheet(c, card));
     grid.append(card);
   }
-  view.replaceChildren(...header('Discover', 'New to you, because of what you\'ve watched and requested.'), grid, ...(foot ? [foot] : []));
+  view.replaceChildren(...header('Discover', 'New to you, because of what you\'ve watched, requested and starred.'), grid, ...(foot ? [foot] : []));
 }
 
 // ---------- Title ----------
@@ -619,7 +619,10 @@ async function renderTitle(seq, type, id, q) {
   } else {
     const grid = h('div', { class: 'grid' });
     for (const r of d.recommendations) {
-      const card = h('a', { class: 'card', href: onward(r) }, posterEl(r), cardText(r.title, h('div', { class: 'meta', text: r.year || '' })));
+      const poster = posterEl(r);
+      // Starred titles are off the wall but still related: the star says why it's here.
+      if (r.starred) poster.append(h('span', { class: 'star-tag', title: 'On your watchlist' }, svg(STAR)));
+      const card = h('a', { class: 'card', href: onward(r) }, poster, cardText(r.title, h('div', { class: 'meta', text: r.year || '' })));
       pressable(card, r, () => blockSheet(r, card));
       grid.append(card);
     }
@@ -724,11 +727,12 @@ function badgeRow(t) {
       svg('<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>')));
 }
 
-const WHY_REASONS = { liked: 'You liked', watched: 'You watched', requested: 'You requested', disliked: 'You disliked' };
+const WHY_REASONS = { liked: 'You liked', watched: 'You watched', requested: 'You requested', starred: 'You starred', disliked: 'You disliked' };
 const WHY_HIDDEN = {
   library: 'It\'s already in the library, so Discover doesn\'t show it.',
   yours: 'You\'ve watched or requested it, so Discover doesn\'t show it.',
   blocked: 'You blocked it, so Discover doesn\'t show it.',
+  starred: 'It\'s on your watchlist, so Discover doesn\'t show it. Find it in Library.',
 };
 const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
 
@@ -761,7 +765,7 @@ async function whySheet(t) {
   }
   if (d.hidden) kids.push(h('p', { class: 'why-note', text: WHY_HIDDEN[d.hidden] }));
   if (d.failed) kids.push(h('p', { class: 'why-note', text: `${d.failed} of your titles couldn't be checked right now.` }));
-  kids.push(h('p', { class: 'why-how', text: 'Each of your titles that recommends it adds to its score: liked +1.5, watched +1.0, requested +0.8, disliked −1.0. Discover shows the highest scores first.' }));
+  kids.push(h('p', { class: 'why-how', text: 'Each of your titles that recommends it adds to its score: liked +1.5, watched +1.0, requested +0.8, starred +0.6, disliked −1.0. Discover shows the highest scores first.' }));
   body.replaceChildren(...kids);
 }
 

@@ -72,6 +72,13 @@ func (c *ttlCache[V]) get(ctx context.Context, k Key, load func(context.Context,
 	return f.v, f.err
 }
 
+// forget drops the remembered answer for k, so the next ask fetches it again.
+func (c *ttlCache[V]) forget(k Key) {
+	c.mu.Lock()
+	delete(c.items, k)
+	c.mu.Unlock()
+}
+
 // prune drops expired entries; called with mu held.
 func (c *ttlCache[V]) prune() {
 	now := c.now()
@@ -92,6 +99,22 @@ type cachedSeerr struct {
 	options *ttlCache[RequestOptions] // keyed by media type, ID 0
 	parts   *ttlCache[[]Title]        // collection parts, keyed by {movie, collection ID}
 	ratings *ttlCache[Ratings]
+	starred *ttlCache[[]Title] // watchlists, keyed by {"", Seerr user ID}
+}
+
+// Watchlist is asked on every wall and title page, so it is remembered for a
+// few minutes: a star set in Seerr itself shows up within that. One set
+// through spor forgets the person's list at once (SetWatchlist).
+func (c *cachedSeerr) Watchlist(ctx context.Context, asUser int) ([]Title, error) {
+	return c.starred.get(ctx, Key{ID: asUser}, func(ctx context.Context, k Key) ([]Title, error) {
+		return c.seerrClient.Watchlist(ctx, k.ID)
+	})
+}
+
+func (c *cachedSeerr) SetWatchlist(ctx context.Context, asUser int, k Key, title string, on bool) error {
+	err := c.seerrClient.SetWatchlist(ctx, asUser, k, title, on)
+	c.starred.forget(Key{ID: asUser})
+	return err
 }
 
 func (c *cachedSeerr) Ratings(ctx context.Context, k Key) (Ratings, error) {
@@ -111,6 +134,7 @@ func newCachedSeerr(c *seerrClient) *cachedSeerr {
 		options: newTTLCache[RequestOptions](10 * time.Minute),
 		parts:   newTTLCache[[]Title](24 * time.Hour),
 		ratings: newTTLCache[Ratings](24 * time.Hour),
+		starred: newTTLCache[[]Title](5 * time.Minute),
 	}
 }
 

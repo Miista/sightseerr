@@ -619,18 +619,20 @@ func (c *seerrClient) OnWatchlist(ctx context.Context, asUser int, k Key) (bool,
 }
 
 // Watchlist is the Seerr user's own watchlist, newest first, as Seerr keeps
-// it for non-Plex users (GET /discover/watchlist, asked as them).
-func (c *seerrClient) Watchlist(ctx context.Context, asUser int) ([]Key, error) {
+// it for non-Plex users (GET /discover/watchlist, asked as them). Only the
+// type, ID and name are filled in.
+func (c *seerrClient) Watchlist(ctx context.Context, asUser int) ([]Title, error) {
 	if asUser <= 0 {
 		return nil, fmt.Errorf("%w: no Seerr user to ask for", errSeerr)
 	}
-	var keys []Key
+	var titles []Title
 	for page := 1; page <= 50; page++ {
 		var out struct {
 			TotalPages int `json:"totalPages"`
 			Results    []struct {
 				TmdbID    int    `json:"tmdbId"`
 				MediaType string `json:"mediaType"`
+				Title     string `json:"title"`
 			} `json:"results"`
 		}
 		if err := c.do(ctx, http.MethodGet, fmt.Sprintf("/discover/watchlist?page=%d", page), asUser, nil, &out); err != nil {
@@ -638,14 +640,14 @@ func (c *seerrClient) Watchlist(ctx context.Context, asUser int) ([]Key, error) 
 		}
 		for _, r := range out.Results {
 			if mt, ok := parseMediaType(r.MediaType); ok && r.TmdbID > 0 {
-				keys = append(keys, Key{mt, r.TmdbID})
+				titles = append(titles, Title{Type: mt, ID: r.TmdbID, Title: r.Title})
 			}
 		}
 		if page >= out.TotalPages || len(out.Results) == 0 {
 			break
 		}
 	}
-	return keys, nil
+	return titles, nil
 }
 
 // SetWatchlist puts the title on the Seerr user's watchlist, or takes it off.

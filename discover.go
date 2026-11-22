@@ -15,6 +15,7 @@ const (
 	weightLiked     = 1.5
 	weightWatched   = 1.0
 	weightRequested = 0.8
+	weightStarred   = 0.6 // on the person's Seerr watchlist: "maybe later"
 	weightDisliked  = -1.0
 )
 
@@ -28,8 +29,31 @@ func seedWeight(s Seed, rating int) float64 {
 		return weightWatched
 	case s.Requested:
 		return weightRequested
+	case s.Starred:
+		return weightStarred
 	}
 	return 0
+}
+
+// withStarred adds the person's starred titles to their seeds. Seerr's
+// watchlist has no dates, and a star is a wish held now, so a title that is
+// only starred counts as of now; one also watched or requested keeps its own
+// date (and its stronger weight).
+func withStarred(seeds []Seed, starred []Title, now time.Time) []Seed {
+	out := slices.Clone(seeds)
+	at := make(map[Key]int, len(out))
+	for i, s := range out {
+		at[s.Key] = i
+	}
+	for _, t := range starred {
+		if i, ok := at[t.Key()]; ok {
+			out[i].Starred = true
+			continue
+		}
+		at[t.Key()] = len(out)
+		out = append(out, Seed{Key: t.Key(), Title: t.Title, Starred: true, At: now})
+	}
+	return out
 }
 
 // Because is the seed a card is shown for: "because you watched X".
@@ -37,13 +61,16 @@ type Because struct {
 	Type   MediaType `json:"type"`
 	ID     int       `json:"id"`
 	Title  string    `json:"title"`
-	Reason string    `json:"reason"` // "watched" or "requested"
+	Reason string    `json:"reason"` // "watched", "requested" or "starred"
 }
 
 func becauseOf(s Seed) Because {
-	reason := "requested"
-	if s.Watched {
+	reason := "starred"
+	switch {
+	case s.Watched:
 		reason = "watched" // it was actually seen
+	case s.Requested:
+		reason = "requested"
 	}
 	return Because{Type: s.Key.Type, ID: s.Key.ID, Title: s.Title, Reason: reason}
 }
@@ -57,18 +84,20 @@ type Card struct {
 
 // Exclusions is what must never be offered: titles Seerr knows (had, on the
 // way, blocklisted), titles the person watched or requested, and titles they
-// blocked.
+// blocked. Starred titles are hidden too, but only where starred is set: the
+// wall leaves it set, a title page's "More like this" clears it.
 type Exclusions struct {
 	statuses map[Key]int
 	own      map[Key]bool
 	blocked  map[Key]bool
+	starred  map[Key]bool
 }
 
 // hides reports whether the title must not be shown. The status Seerr gave
 // with the title counts too, since it can be newer than the last status sync.
 func (e Exclusions) hides(t Title) bool {
 	k := t.Key()
-	return inLibrary(t.Status) || inLibrary(e.statuses[k]) || e.own[k] || e.blocked[k]
+	return inLibrary(t.Status) || inLibrary(e.statuses[k]) || e.own[k] || e.blocked[k] || e.starred[k]
 }
 
 func (e Exclusions) filter(ts []Title) []Title {
@@ -145,7 +174,7 @@ type Contribution struct {
 	Type     MediaType `json:"type"`
 	ID       int       `json:"id"`
 	Title    string    `json:"title"`
-	Reason   string    `json:"reason"` // "liked", "disliked", "watched" or "requested"
+	Reason   string    `json:"reason"` // "liked", "disliked", "watched", "requested" or "starred"
 	Weight   float64   `json:"weight"`
 	Position int       `json:"position"` // 1-based place in that title's list
 	Of       int       `json:"of"`       // length of that list

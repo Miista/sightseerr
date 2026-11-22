@@ -26,13 +26,14 @@ type requested struct {
 }
 
 type fakeSeerr struct {
-	details map[Key]Details
-	recs    map[Key][]Title
-	missing map[Key]bool // Details fails for these
-	options RequestOptions
-	parts   map[int][]Title // collection ID → parts
-	scores  map[Key]Ratings
-	listed  map[listKey]bool // watchlists
+	details   map[Key]Details
+	recs      map[Key][]Title
+	missing   map[Key]bool // Details fails for these
+	options   RequestOptions
+	parts     map[int][]Title // collection ID → parts
+	scores    map[Key]Ratings
+	listed    map[listKey]bool // watchlists
+	listFails bool             // Watchlist fails
 
 	mu       sync.Mutex
 	requests []requested
@@ -81,17 +82,20 @@ func (f *fakeSeerr) OnWatchlist(_ context.Context, asUser int, k Key) (bool, err
 	return f.listed[listKey{asUser, k}], nil
 }
 
-func (f *fakeSeerr) Watchlist(_ context.Context, asUser int) ([]Key, error) {
+func (f *fakeSeerr) Watchlist(_ context.Context, asUser int) ([]Title, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	var keys []Key
+	if f.listFails {
+		return nil, errors.New("seerr is down")
+	}
+	var out []Title
 	for lk, on := range f.listed {
 		if on && lk.user == asUser {
-			keys = append(keys, lk.key)
+			out = append(out, Title{Type: lk.key.Type, ID: lk.key.ID, Title: lk.key.String()})
 		}
 	}
-	slices.SortFunc(keys, func(a, b Key) int { return cmp.Compare(a.ID, b.ID) })
-	return keys, nil
+	slices.SortFunc(out, func(a, b Title) int { return cmp.Compare(a.ID, b.ID) })
+	return out, nil
 }
 
 func (f *fakeSeerr) SetWatchlist(_ context.Context, asUser int, k Key, _ string, on bool) error {
@@ -516,13 +520,92 @@ func TestLibraryWatchlistSection(t *testing.T) {
 	if len(wl) != 1 || wl[0].(map[string]any)["title"] != "Greenland 2" || wl[0].(map[string]any)["poster"] != "/g.jpg" {
 		t.Fatalf("watchlist = %v, want only Alice's Greenland 2 with its poster", wl)
 	}
-	// Starred titles stay on the wall: starring doesn't hide them.
+}
+
+// wallByTitle is the wall's cards by name.
+func wallByTitle(t *testing.T, h *harness) map[string]map[string]any {
+	t.Helper()
+	w, out := h.do(t, "GET", "/api/wall", "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("wall: %d", w.Code)
+	}
+	cards := map[string]map[string]any{}
+	for _, c := range out["cards"].([]any) {
+		cards[c.(map[string]any)["title"].(string)] = c.(map[string]any)
+	}
+	return cards
+}
+
+// A starred title leaves the wall but counts as a seed at 0.6; it stays in
+// "More like this", marked; unstarred, it is back on the wall.
+func TestStarredTitles(t *testing.T) {
+	h := newHarness(t)
+	as(t, "alice@example.com")
+	ctx := context.Background()
+	seed, star := Key{Movie, 1}, Key{Movie, 5}
+	h.store.AddWatched(1, []Watched{{Key: seed, Title: "Fall", At: t0}})
+	h.seerr.recs[seed] = []Title{mv(5, "Greenland 2"), mv(7, "Maze Runner")}
+	h.seerr.recs[star] = []Title{mv(8, "Deep Impact")}
+	h.seerr.SetWatchlist(ctx, 1, star, "", true)
+	h.seerr.SetWatchlist(ctx, 3, Key{Movie, 7}, "", true) // Bob's star is nothing to Alice
+
+	wall := wallByTitle(t, h)
+	if _, ok := wall["Greenland 2"]; ok {
+		t.Error("the starred title is on the wall")
+	}
+	if _, ok := wall["Maze Runner"]; !ok {
+		t.Error("Bob's star hid a title from Alice's wall")
+	}
+	c := wall["Deep Impact"]
+	if c == nil || c["score"] != weightStarred || c["because"].(map[string]any)["reason"] != "starred" {
+		t.Fatalf("the starred title's recommendation = %v, want score %v because starred", c, weightStarred)
+	}
+	if _, why := h.do(t, "GET", "/api/why/movie/5", ""); why["hidden"] != "starred" {
+		t.Errorf("why: hidden = %v, want starred", why["hidden"])
+	}
+
+	// On a title page it is still among what's related, marked; others aren't.
+	_, page := h.do(t, "GET", "/api/title/movie/1", "")
+	marks := map[string]any{}
+	for _, r := range page["recommendations"].([]any) {
+		marks[r.(map[string]any)["title"].(string)] = r.(map[string]any)["starred"]
+	}
+	if len(marks) != 2 || marks["Greenland 2"] != true || marks["Maze Runner"] != nil {
+		t.Errorf("More like this = %v, want Greenland 2 starred and Maze Runner unmarked", marks)
+	}
+
+	// Watched as well, it counts as watched, not starred.
+	h.store.AddWatched(1, []Watched{{Key: star, Title: "Greenland 2", At: t0}})
+	if c := wallByTitle(t, h)["Deep Impact"]; c == nil || c["score"] != weightWatched {
+		t.Errorf("watched and starred: %v, want score %v", c, weightWatched)
+	}
+
+	// Unstarred (and never watched), it is back on the wall and no longer a seed.
+	h2 := newHarness(t)
+	h2.store.AddWatched(1, []Watched{{Key: seed, Title: "Fall", At: t0}})
+	h2.seerr.recs = h.seerr.recs
+	h2.seerr.SetWatchlist(ctx, 1, star, "", true)
+	h2.do(t, "POST", "/api/watchlist", `{"type":"movie","id":5,"on":false}`)
+	wall = wallByTitle(t, h2)
+	if _, ok := wall["Greenland 2"]; !ok {
+		t.Error("unstarred, the title is still off the wall")
+	}
+	if _, ok := wall["Deep Impact"]; ok {
+		t.Error("unstarred, the title still recommends")
+	}
+}
+
+// If Seerr can't give the watchlist, the wall still comes, without stars.
+func TestWallWithoutWatchlist(t *testing.T) {
+	h := newHarness(t)
+	as(t, "alice@example.com")
 	seed := Key{Movie, 1}
 	h.store.AddWatched(1, []Watched{{Key: seed, Title: "Fall", At: t0}})
 	h.seerr.recs[seed] = []Title{mv(5, "Greenland 2")}
-	_, wall := h.do(t, "GET", "/api/wall", "")
-	if cards := wall["cards"].([]any); len(cards) != 1 || cards[0].(map[string]any)["title"] != "Greenland 2" {
-		t.Errorf("wall = %v, want the starred title still on it", cards)
+	h.seerr.SetWatchlist(context.Background(), 1, Key{Movie, 5}, "", true)
+	h.seerr.listFails = true
+	if _, ok := wallByTitle(t, h)["Greenland 2"]; !ok {
+		t.Error("with no watchlist to go by, the wall dropped the title")
 	}
 }
 

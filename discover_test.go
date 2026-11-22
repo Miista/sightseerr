@@ -21,12 +21,37 @@ func TestSeedWeight(t *testing.T) {
 		{"liked beats watched", Seed{Watched: true}, 1, weightLiked},
 		{"disliked overrides watched", Seed{Watched: true}, -1, weightDisliked},
 		{"disliked overrides watched and requested", Seed{Watched: true, Requested: true}, -1, weightDisliked},
+		{"starred only", Seed{Starred: true}, 0, weightStarred},
+		{"requested beats starred", Seed{Requested: true, Starred: true}, 0, weightRequested},
+		{"watched beats starred", Seed{Watched: true, Starred: true}, 0, weightWatched},
+		{"disliked overrides starred", Seed{Starred: true}, -1, weightDisliked},
 		{"neither watched nor requested weighs nothing", Seed{}, 0, 0},
 	}
 	for _, c := range cases {
 		if got := seedWeight(c.seed, c.rating); got != c.want {
 			t.Errorf("%s: weight %v, want %v", c.name, got, c.want)
 		}
+	}
+}
+
+func TestWithStarred(t *testing.T) {
+	now := t0.Add(48 * time.Hour)
+	seeds := []Seed{{Key: Key{Movie, 1}, Title: "Fall", Watched: true, At: t0}}
+	got := withStarred(seeds, []Title{mv(1, "Fall"), mv(5, "Greenland 2"), mv(5, "Greenland 2")}, now)
+	if len(got) != 2 {
+		t.Fatalf("seeds = %v, want Fall and Greenland 2 once each", got)
+	}
+	if g := got[0]; !g.Watched || !g.Starred || !g.At.Equal(t0) {
+		t.Errorf("a watched title also starred = %+v, want it watched, starred, with its own date", g)
+	}
+	if g := got[1]; g.Key != (Key{Movie, 5}) || g.Title != "Greenland 2" || g.Watched || g.Requested || !g.Starred || !g.At.Equal(now) {
+		t.Errorf("a title only starred = %+v, want starred as of now", g)
+	}
+	if seeds[0].Starred {
+		t.Error("withStarred changed the seeds it was given")
+	}
+	if b := becauseOf(got[1]); b.Reason != "starred" {
+		t.Errorf("because of a starred title: %q", b.Reason)
 	}
 }
 

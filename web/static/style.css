@@ -143,6 +143,10 @@ a.card:active { transform: scale(.96); }
   text-transform: uppercase; color: #fff; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .kind.movie { background: oklch(0.5 0.19 262 / .85); }
 .kind.tv { background: oklch(0.52 0.2 330 / .85); }
+/* "More like this": a starred title wears Seerr's star, opposite the type badge. */
+.star-tag { position: absolute; top: 8px; right: 8px; z-index: 1; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px;
+  background: rgba(9,11,16,.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14); }
+.star-tag svg { width: 15px; height: 15px; fill: #fcd34d; stroke: #fcd34d; stroke-width: 1.5; stroke-linejoin: round; }
 
 /* Library */
 .card.unwatched .poster { background: #000; }

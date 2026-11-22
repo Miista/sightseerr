@@ -29,7 +29,7 @@ type seerrAPI interface {
 	Ratings(ctx context.Context, k Key) (Ratings, error)
 	OnWatchlist(ctx context.Context, asUser int, k Key) (bool, error)
 	SetWatchlist(ctx context.Context, asUser int, k Key, title string, on bool) error
-	Watchlist(ctx context.Context, asUser int) ([]Key, error)
+	Watchlist(ctx context.Context, asUser int) ([]Title, error)
 	RequestOptions(ctx context.Context, mt MediaType) (RequestOptions, error)
 	CollectionParts(ctx context.Context, id int) ([]Title, error)
 }
@@ -148,8 +148,11 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"linked": true, "name": nameOf(su), "jellyfin": su.JellyfinUserID != ""})
 }
 
-// exclusions gathers what must not be offered to the person.
-func (s *Server) exclusions(user int) (Exclusions, []Seed, map[Key]int, error) {
+// exclusions gathers what must not be offered to the person, and the seeds
+// to score with: what spor has stored, plus their Seerr watchlist as it is
+// now. A watchlist Seerr can't give leaves both without it, rather than
+// failing the page.
+func (s *Server) exclusions(ctx context.Context, user int) (Exclusions, []Seed, map[Key]int, error) {
 	seeds, err := s.store.Seeds(user)
 	if err != nil {
 		return Exclusions{}, nil, nil, err
@@ -162,14 +165,21 @@ func (s *Server) exclusions(user int) (Exclusions, []Seed, map[Key]int, error) {
 	if err != nil {
 		return Exclusions{}, nil, nil, err
 	}
-	ex := Exclusions{statuses: s.statuses.snapshot(), own: map[Key]bool{}, blocked: map[Key]bool{}}
+	ex := Exclusions{statuses: s.statuses.snapshot(), own: map[Key]bool{}, blocked: map[Key]bool{}, starred: map[Key]bool{}}
 	for _, sd := range seeds {
 		ex.own[sd.Key] = true
 	}
 	for _, b := range blocks {
 		ex.blocked[b.Key()] = true
 	}
-	return ex, seeds, ratings, nil
+	starred, err := s.seerr.Watchlist(ctx, user)
+	if err != nil {
+		s.log.Warn().Msg(fmt.Sprintf("could not read the watchlist of Seerr user %d, so it counts for nothing this time: %v", user, err))
+	}
+	for _, t := range starred {
+		ex.starred[t.Key()] = true
+	}
+	return ex, withStarred(seeds, starred, time.Now()), ratings, nil
 }
 
 func (s *Server) wall(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +191,7 @@ func (s *Server) wall(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"syncing": true, "cards": []Card{}})
 		return
 	}
-	ex, seeds, ratings, err := s.exclusions(su.ID)
+	ex, seeds, ratings, err := s.exclusions(r.Context(), su.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -295,7 +305,7 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 		s.log.Debug().Msg(fmt.Sprintf("watchlist state of %s unknown: %v", k, listErr))
 	}
 
-	ex, seeds, ratings, err := s.exclusions(su.ID)
+	ex, seeds, ratings, err := s.exclusions(r.Context(), su.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -359,15 +369,18 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 	}
 	// "More like this" is everything TMDb recommends for it (the same up-to-20
 	// list Discover scores with), less the collection, which has its own
-	// section, and what you have, watched, requested or blocked.
+	// section, and what you have, watched, requested or blocked. Starred
+	// titles stay, marked: off the wall, but still among what's related.
 	inCollection := map[Key]bool{}
 	for _, p := range parts {
 		inCollection[p.Key()] = true
 	}
-	more := []Title{}
+	starred := ex.starred
+	ex.starred = nil
+	more := []moreCard{}
 	for _, t := range ex.filter(recs) {
 		if !inCollection[t.Key()] {
-			more = append(more, t)
+			more = append(more, moreCard{Title: t, Starred: starred[t.Key()]})
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -376,6 +389,12 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 		"requestable":     !inLibrary(d.Status) && !requested,
 		"recommendations": more, "trail": steps, "ahead": later, "links": links, "collection": parts,
 	})
+}
+
+// moreCard is one title of "More like this".
+type moreCard struct {
+	Title
+	Starred bool `json:"starred,omitempty"`
 }
 
 // watchlist puts a title on, or takes it off, the signed-in person's Seerr
@@ -431,7 +450,7 @@ func (s *Server) why(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, errors.New("no such title"))
 		return
 	}
-	ex, seeds, ratings, err := s.exclusions(su.ID)
+	ex, seeds, ratings, err := s.exclusions(r.Context(), su.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -445,6 +464,8 @@ func (s *Server) why(w http.ResponseWriter, r *http.Request) {
 		hidden = "yours" // watched or requested
 	case inLibrary(ex.statuses[k]):
 		hidden = "library"
+	case ex.starred[k]:
+		hidden = "starred"
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"score": score, "by": by, "failed": failed, "hidden": hidden})
 }
@@ -656,7 +677,11 @@ func (s *Server) library(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.log.Warn().Msg(fmt.Sprintf("could not read %s's watchlist: %v", nameOf(su), err))
 	}
-	details := s.detailsFor(r.Context(), append(append(slices.Clone(keys), goneKeys...), listed...))
+	listedKeys := make([]Key, len(listed))
+	for i, t := range listed {
+		listedKeys[i] = t.Key()
+	}
+	details := s.detailsFor(r.Context(), append(append(slices.Clone(keys), goneKeys...), listedKeys...))
 
 	out := make([]libraryCard, 0, len(keys))
 	for _, k := range keys {
@@ -686,8 +711,8 @@ func (s *Server) library(w http.ResponseWriter, r *http.Request) {
 		earlier = append(earlier, libraryCard{Title: t, Watched: true, Rating: ratings[sd.Key]})
 	}
 	watchlist := make([]libraryCard, 0, len(listed))
-	for _, k := range listed {
-		t := Title{Type: k.Type, ID: k.ID}
+	for _, lt := range listed {
+		k, t := lt.Key(), lt
 		if d, ok := details[k]; ok {
 			t = d.Title
 		}

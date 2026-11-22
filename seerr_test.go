@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 )
@@ -225,6 +226,59 @@ func TestWatchlistCallsActAsThePerson(t *testing.T) {
 	before := stub.calls.Load()
 	if err := c.SetWatchlist(ctx, 0, Key{Movie, 1}, "", true); err == nil || stub.calls.Load() != before {
 		t.Error("watchlist change without a person reached Seerr")
+	}
+}
+
+// The watchlist is remembered per person, and a star set through spor shows
+// at once: it forgets that person's list (and only theirs).
+func TestCachedWatchlist(t *testing.T) {
+	var mu sync.Mutex
+	lists := map[string][]string{"3": {`{"tmdbId":603,"mediaType":"movie","title":"The Matrix"}`}, "1": {}}
+	fetches := map[string]int{}
+	_, c := newSeerrStub(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		user := r.Header.Get("X-API-User")
+		switch {
+		case r.URL.Path == "/api/v1/discover/watchlist":
+			fetches[user]++
+			fmt.Fprintf(w, `{"page":1,"totalPages":1,"results":[%s]}`, strings.Join(lists[user], ","))
+		case r.Method == http.MethodPost:
+			lists[user] = append(lists[user], `{"tmdbId":1399,"mediaType":"tv","title":"Game of Thrones"}`)
+			w.WriteHeader(http.StatusCreated)
+		}
+	})
+	cs := newCachedSeerr(c)
+	ctx := context.Background()
+	names := func(user int) string {
+		t.Helper()
+		ts, err := cs.Watchlist(ctx, user)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, x := range ts {
+			out = append(out, fmt.Sprintf("%s %s", x.Key(), x.Title))
+		}
+		return strings.Join(out, ",")
+	}
+	if got := names(3); got != "movie:603 The Matrix" {
+		t.Fatalf("watchlist = %q", got)
+	}
+	names(3)
+	names(1)
+	if fetches["3"] != 1 {
+		t.Errorf("asked Seerr %d times for the same list, want 1", fetches["3"])
+	}
+	if err := cs.SetWatchlist(ctx, 3, Key{TV, 1399}, "Game of Thrones", true); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(3); got != "movie:603 The Matrix,tv:1399 Game of Thrones" {
+		t.Errorf("after starring, watchlist = %q, want the new star in it", got)
+	}
+	names(1)
+	if fetches["1"] != 1 {
+		t.Errorf("starring for one person refetched another's list (%d fetches)", fetches["1"])
 	}
 }
 

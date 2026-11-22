@@ -85,6 +85,7 @@ type Seed struct {
 	Title     string
 	Watched   bool
 	Requested bool
+	Starred   bool      // on the Seerr watchlist; never stored, read from Seerr per page
 	At        time.Time // the latest of watched and requested
 }
 

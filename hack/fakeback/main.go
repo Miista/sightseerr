@@ -134,9 +134,14 @@ func seerr(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		for k, on := range watchlist {
 			if on && strings.HasPrefix(k, user) {
-				typ, id, _ := strings.Cut(strings.TrimPrefix(k, user), ":")
+				key := strings.TrimPrefix(k, user)
+				typ, id, _ := strings.Cut(key, ":")
 				n, _ := strconv.Atoi(id)
-				res = append(res, map[string]any{"tmdbId": n, "mediaType": typ, "title": k})
+				name, _ := byKey[key]["title"].(string)
+				if name == "" {
+					name, _ = byKey[key]["name"].(string)
+				}
+				res = append(res, map[string]any{"tmdbId": n, "mediaType": typ, "title": name})
 			}
 		}
 		mu.Unlock()
