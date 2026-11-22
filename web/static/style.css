@@ -20,7 +20,7 @@
   --accent-strong: oklch(0.68 0.2 262);  /* active segment */
   --highlight: #d2dbff;                  /* "because you watched X" */
   --action: linear-gradient(140deg, oklch(0.62 0.196 35), oklch(0.48 0.187 35)); /* coral: Request, logo */
-  --action-active: oklch(0.76 0.145 35); /* selected tab */
+  --action-active: oklch(0.62 0.196 35); /* selected tab: the Request button's coral */
   --red: oklch(0.82 0.15 25);
   --green: oklch(0.86 0.17 150);
   --glass: rgba(9,11,16,.72);
@@ -74,7 +74,7 @@ button { font: inherit; color: inherit; }
 @media (hover: hover) { .tabs a:hover { color: var(--text); } }
 .tabs a.on { color: var(--action-active); }
 .tabs a.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0;
-  background: var(--action-active); box-shadow: 0 0 14px 1px oklch(0.7 0.17 35 / .9); }
+  background: var(--action); box-shadow: 0 0 14px 1px oklch(0.6 0.19 35 / .9); }
 @media (min-width: 821px) { .top-in { height: 72px; } }
 
 /* Phones: the header's tabs give way to a docked bottom bar, in the thumb zone. */
@@ -88,7 +88,7 @@ button { font: inherit; color: inherit; }
     color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   .bottom-bar a.on { color: var(--action-active); }
   .bottom-bar a.on::before { content: ''; position: absolute; top: -1px; left: 22%; right: 22%; height: 2px; border-radius: 0 0 2px 2px;
-    background: var(--action-active); box-shadow: 0 0 14px 1px oklch(0.7 0.17 35 / .9), 0 0 32px oklch(0.6 0.187 35 / .5); }
+    background: var(--action); box-shadow: 0 0 14px 1px oklch(0.6 0.19 35 / .9), 0 0 32px oklch(0.55 0.187 35 / .5); }
 }
 
 main { padding: 26px var(--gutter) 60px; max-width: 1320px; margin: 0 auto; }
