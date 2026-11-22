@@ -215,6 +215,11 @@ a.card:active { transform: scale(.96); }
   transition: opacity .22s ease, transform .22s var(--ease); pointer-events: none; }
 .head-title.show { opacity: 1; transform: none; }
 .head-title .bar { width: 1px; height: 18px; background: rgba(255,255,255,.2); flex: none; }
+/* The title in flight between the header and the stuck "More like …" bar (app.js glide). */
+.glide { position: fixed; z-index: 11; margin: 0; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transform-origin: 0 0; pointer-events: none; will-change: transform; }
+/* "More like <a long title>" ends in an ellipsis rather than leaving the bar. */
+.more .title-row h2 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .head-title .txt { font-size: 16px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Buttons: coral for the action, neutral once done, outlined otherwise. */

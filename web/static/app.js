@@ -655,7 +655,9 @@ async function renderTitle(seq, type, id, q) {
     ];
   }
 
-  const more = h('section', { class: 'more' }, h('div', { class: 'section-head' }, h('div', { class: 'title-row' }, h('h2', { text: 'More like this' }))));
+  // "this" becomes the title once the bar sticks under the header (setHeadTitle).
+  const more = h('section', { class: 'more' }, h('div', { class: 'section-head' }, h('div', { class: 'title-row' },
+    h('h2', {}, 'More like ', h('span', { class: 'more-what', text: 'this' })))));
   if (!d.recommendations.length) {
     more.append(h('p', { class: 'lede more-empty', text: 'No new recommendations for this one: everything is in the library, watched or blocked.' }));
   } else {
@@ -673,7 +675,7 @@ async function renderTitle(seq, type, id, q) {
   // replaceChildren would print a missing section as the text "null".
   view.replaceChildren(...[h('div', { class: 'detail' }, ...top), coll, more].filter(Boolean));
   document.title = `${t.title} · sightseerr`;
-  setHeadTitle(t.title, view.querySelector('.d-title h1'));
+  setHeadTitle(t.title, view.querySelector('.d-title h1'), more.querySelector('.section-head'));
   if (!isWide) dockRequest(actions.querySelector('.btn.req'), actions.querySelector('.star-btn'));
 }
 
@@ -730,21 +732,70 @@ function dockRequest(btn, star) {
 }
 
 // Once the page's title has scrolled under the header, the header shows it
-// next to the wordmark.
+// next to the wordmark. Once "More like this" sticks under the header, the
+// title glides down into it ("More like Oblivion") and the header is the
+// wordmark alone; scrolled back, it glides home. Three states: none (the h1
+// is on screen), head, more.
 const headTitle = $('headTitle');
 let headWatch = null;
-function setHeadTitle(text, h1) {
+let headMode = 'none';
+let flight = null;
+function setHeadTitle(text, h1, moreHead) {
   window.removeEventListener('scroll', headWatch);
+  flight?.finish();
   headTitle.classList.remove('show');
   headWatch = null;
+  headMode = 'none';
   if (!text) return;
-  headTitle.querySelector('.txt').textContent = text;
+  const txt = headTitle.querySelector('.txt');
+  txt.textContent = text;
+  const what = moreHead?.querySelector('.more-what');
   headWatch = () => {
     if (!h1.isConnected) { window.removeEventListener('scroll', headWatch); return; }
-    headTitle.classList.toggle('show', h1.getBoundingClientRect().bottom < topbar.offsetHeight);
+    const bar = topbar.offsetHeight;
+    const mode = what && moreHead.getBoundingClientRect().top <= bar ? 'more'
+      : h1.getBoundingClientRect().bottom < bar ? 'head' : 'none';
+    if (mode === headMode) return;
+    const was = headMode;
+    headMode = mode;
+    flight?.finish();
+    // Where the title is now, measured before anything moves.
+    const from = was === 'head' ? txt : was === 'more' ? what : null;
+    const fromBox = from?.getBoundingClientRect(), fromSize = from && parseFloat(getComputedStyle(from).fontSize);
+    headTitle.classList.toggle('show', mode === 'head');
+    if (what) what.textContent = mode === 'more' ? text : 'this';
+    if (was === 'head' && mode === 'more') glide(fromBox, fromSize, what, text, txt); // the header's copy goes at once, not fading
+    else if (was === 'more' && mode === 'head') glide(fromBox, fromSize, txt, text);
   };
   window.addEventListener('scroll', headWatch, { passive: true });
   headWatch();
+}
+
+// glide flies a copy of the title from where it was (box, font size) to the
+// element that now holds it, which stays hidden until it lands, as does
+// `leave`, the old place, if given. The copy has the destination's own type,
+// started scaled to the old size, so it ends exactly on the real text and
+// nothing jumps.
+function glide(fromBox, fromSize, to, text, leave) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  to.style.visibility = 'hidden';
+  if (leave) leave.style.visibility = 'hidden';
+  const box = to.getBoundingClientRect(), cs = getComputedStyle(to);
+  const room = to.closest('h2, .head-title')?.getBoundingClientRect().right ?? innerWidth;
+  const fly = h('span', { class: 'glide', 'aria-hidden': 'true', text });
+  Object.assign(fly.style, {
+    left: `${box.left}px`, top: `${box.top}px`, maxWidth: `${Math.max(0, room - box.left)}px`,
+    font: cs.font, letterSpacing: cs.letterSpacing, lineHeight: `${box.height}px`,
+  });
+  document.body.append(fly);
+  const scale = fromSize / parseFloat(cs.fontSize);
+  flight = fly.animate([
+    { transform: `translate(${fromBox.left - box.left}px, ${fromBox.top - box.top}px) scale(${scale})` },
+    { transform: 'none' },
+  ], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  flight.finished.catch(() => {}).finally(() => {
+    fly.remove(); to.style.visibility = ''; if (leave) leave.style.visibility = ''; flight = null;
+  });
 }
 
 // watchlistButton puts the title on your Seerr watchlist, or takes it off:
