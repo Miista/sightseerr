@@ -9,8 +9,9 @@
 
 :root {
   color-scheme: dark;
-  --bg: #090b10;
-  --surface: #161a23;
+  --bg-rgb: 21 25 34;            /* #151922 (also theme-color in index.html and the manifest); the glass and bars are this, translucent */
+  --bg: rgb(var(--bg-rgb));
+  --surface: #232835;
   --text: #eef1f6;
   --text-2: #c9c5d2;
   --muted: #868d9b;
@@ -24,7 +25,7 @@
   --green: oklch(0.86 0.17 150);
   /* Frosted bars. Strong enough that the dark gap between two poster columns
      scrolling underneath washes out instead of showing through as a line. */
-  --glass: rgba(9,11,16,.8);
+  --glass: rgb(var(--bg-rgb) / .8);
   --blur: blur(32px) saturate(1.5);
   --mono: 'DM Mono', ui-monospace, monospace;
   --ease: cubic-bezier(.2,.8,.2,1);
@@ -46,9 +47,6 @@ button { font: inherit; color: inherit; }
 @keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 16px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0); } }
 
-/* A faint film grain over everything (9%, overlay). */
-.grain { position: fixed; inset: 0; z-index: 100; pointer-events: none; opacity: .09; mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
 /* The glass, shared by the title bar, the phone's tab bar and the sticky
    section headers. Put straight on each element: that is what Safari renders
@@ -97,7 +95,7 @@ button { font: inherit; color: inherit; }
   .top .tabs, .who-name { display: none; }
   .who { margin-left: auto; }
   .bottom-bar { display: flex; position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; height: calc(64px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom); background: rgba(9,11,16,.9); border-top: 1px solid rgba(244,239,232,.1); }
+    padding-bottom: env(safe-area-inset-bottom); background: rgb(var(--bg-rgb) / .9); border-top: 1px solid rgba(244,239,232,.1); }
   .bottom-bar a { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: color .2s .1s;
     color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   .bottom-bar a .tab-icon { box-sizing: content-box; padding: 4px 18px; border-radius: 999px; }
@@ -147,7 +145,7 @@ a.card:active { transform: scale(.96); }
 .kind.tv { background: oklch(0.52 0.2 330 / .85); }
 /* "More like this": a starred title wears Seerr's star, opposite the type badge. */
 .star-tag { position: absolute; top: 8px; right: 8px; z-index: 1; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px;
-  background: rgba(9,11,16,.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14); }
+  background: rgb(var(--bg-rgb) / .7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14); }
 .star-tag svg { width: 15px; height: 15px; fill: #fcd34d; stroke: #fcd34d; stroke-width: 1.5; stroke-linejoin: round; }
 
 /* Library */
@@ -155,13 +153,13 @@ a.card:active { transform: scale(.96); }
 .card.unwatched .poster img { filter: grayscale(1) brightness(.5) contrast(1.1); }
 .card.unwatched .name, .card.removed .name { color: var(--dim); }
 .banner { position: absolute; left: -40%; right: -40%; top: 50%; transform: translateY(-50%) rotate(-32deg); padding: 9px 0; text-align: center;
-  background: rgba(9,11,16,.78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  background: rgb(var(--bg-rgb) / .78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   border-top: 1px solid rgba(255,255,255,.28); border-bottom: 1px solid rgba(255,255,255,.28);
   font: 500 11px/1 var(--mono); letter-spacing: .32em; color: #e8e4ef; }
 .card.removed .poster { background: #000; }
 .card.removed .poster img { opacity: .45; }
 .removed-tag { position: absolute; left: 10px; bottom: 10px; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px;
-  background: rgba(9,11,16,.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14);
+  background: rgb(var(--bg-rgb) / .78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14);
   font: 500 10px/1 var(--mono); letter-spacing: .12em; color: #e8e4ef; }
 .removed-tag svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 /* Watchlist cards: a Remove button with Seerr's (filled) amber star. */
@@ -314,8 +312,8 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
    the page: Request stretches, the watchlist star sits beside it. */
 @keyframes dockIn { from { opacity: 0; } to { opacity: 1; } }
 .req-dock { position: fixed; z-index: 19; left: 0; right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center;
-  padding: 12px 20px; background: rgba(9,11,16,.94); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
-  box-shadow: 0 -16px 24px -8px rgba(9,11,16,.9); border-top: 1px solid rgba(255,255,255,.08); animation: dockIn .18s ease both; }
+  padding: 12px 20px; background: rgb(var(--bg-rgb) / .94); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  box-shadow: 0 -16px 24px -8px rgb(var(--bg-rgb) / .9); border-top: 1px solid rgba(255,255,255,.08); animation: dockIn .18s ease both; }
 .req-dock .btn { flex: 1; width: auto; margin: 0; }
 .req-dock .btn.req { width: auto; margin: 0; } /* beats the later .btn.req { margin-top: 22px } */
 .req-dock .btn.star-btn { flex: none; width: 54px; }
@@ -324,7 +322,7 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 /* The path pill and its dropdown. */
 .path-wrap { position: relative; }
 .path-pill { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 13px; border-radius: 999px; cursor: pointer; color: var(--text);
-  background: rgba(9,11,16,.55); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.12); font-size: 15px; font-weight: 600; }
+  background: rgb(var(--bg-rgb) / .55); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.12); font-size: 15px; font-weight: 600; }
 .path-pill.open .chev, .path-pill.on .chev { transform: rotate(180deg); } /* dropdown open / panel open */
 .ico.chev { transition: transform .25s var(--ease); }
 .path-pill.on { background: oklch(0.68 0.2 262 / .2); border-color: oklch(0.68 0.2 262 / .5); }
