@@ -347,15 +347,16 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 			parts = append(parts, collectionPart{Title: t, State: partState(t, seedOf[t.Key()]), Current: t.Key() == k})
 		}
 	}
-	// "More like this" leaves out the collection (it has its own section)
-	// and shows at most a page's worth.
+	// "More like this" is everything TMDb recommends for it (the same up-to-20
+	// list Discover scores with), less the collection, which has its own
+	// section, and what you have, watched, requested or blocked.
 	inCollection := map[Key]bool{}
 	for _, p := range parts {
 		inCollection[p.Key()] = true
 	}
 	more := []Title{}
 	for _, t := range ex.filter(recs) {
-		if !inCollection[t.Key()] && len(more) < maxMoreLikeThis {
+		if !inCollection[t.Key()] {
 			more = append(more, t)
 		}
 	}
@@ -365,8 +366,6 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 		"recommendations": more, "trail": steps, "ahead": later, "links": links, "collection": parts,
 	})
 }
-
-const maxMoreLikeThis = 8
 
 // why explains a title's score on the wall ("why this score"). hidden says
 // why it isn't offered at all, if it isn't: the wall never shows it then,

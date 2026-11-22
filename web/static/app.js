@@ -686,7 +686,7 @@ async function whySheet(t) {
     kids.push(h('ol', { class: 'why-list' }, ...d.by.map((c) => h('li', {},
       h('div', { class: 'why-main' },
         h('div', { class: 'why-title', text: c.title || '…' }),
-        h('div', { class: 'why-sub', text: `${WHY_REASONS[c.reason] || ''} · ${ordinal(c.position)} of ${c.of} in its recommendations` })),
+        h('div', { class: 'why-sub', text: `${WHY_REASONS[c.reason] || ''} · ${ordinal(c.position)} of ${c.of} in TMDb's list for it` })),
       h('span', { class: 'why-weight' + (c.weight < 0 ? ' neg' : ''), text: fmt(c.weight) })))));
   } else {
     kids.push(h('p', { class: 'why-note', text: 'None of your titles recommend this one; you got here through the path.' }));

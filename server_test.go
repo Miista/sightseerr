@@ -401,8 +401,9 @@ func TestTitlePathAheadSeedAndMoreLikeThis(t *testing.T) {
 
 	_, out := h.do(t, "GET", "/api/title/movie/100?ahead=movie:7&seed=movie:55", "")
 	more := out["recommendations"].([]any)
-	if len(more) != maxMoreLikeThis {
-		t.Errorf("%d recommendations, want %d", len(more), maxMoreLikeThis)
+	// All of TMDb's list except the collection part: no cap.
+	if len(more) != 12 {
+		t.Errorf("%d recommendations, want all 12 (13 less the collection part)", len(more))
 	}
 	for _, m := range more {
 		if m.(map[string]any)["title"] == "Sequel" {
