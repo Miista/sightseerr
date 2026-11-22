@@ -342,7 +342,7 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 }
 
 /* The collection: collapsed under a pinned glass bar; opened, one row per part. */
-.coll { margin-top: 30px; }
+.coll { margin-top: 30px; scroll-margin-top: var(--topbar, 60px); } /* "Part of" lands the bar just under the title bar, the first row below it */
 .coll-bar { position: sticky; top: var(--topbar, 60px); z-index: 5; width: calc(100% + 2 * var(--gutter)); margin: 0 calc(-1 * var(--gutter)); padding: 12px var(--gutter);
   display: flex; align-items: center; justify-content: space-between; gap: 14px; text-align: left; cursor: pointer; color: var(--text);
   background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
