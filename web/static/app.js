@@ -154,7 +154,7 @@ async function render() {
   const seq = ++renderSeq;
   for (const dlg of document.querySelectorAll('dialog[open]')) dlg.close();
   document.title = 'sightseerr';
-  setHeadTitle(null);
+  titleBar(null);
   undock();
   if (!isTitle(location.pathname)) closePanel(); // the path panel belongs to title pages
   const path = location.pathname;
@@ -671,10 +671,12 @@ async function renderTitle(seq, type, id, q) {
     }
     more.append(grid);
   }
-  // replaceChildren would print a missing section as the text "null".
-  view.replaceChildren(...[h('div', { class: 'detail' }, ...top), coll, more].filter(Boolean));
+  // The top part (details and collection) gets a bar of its own with the
+  // title, as a section header (titleBar); "More like <title>" follows it.
+  const tbar = h('div', { class: 'section-head title-bar', 'aria-hidden': 'true' }, h('div', { class: 'title-row' }, h('h2', { text: t.title })));
+  view.replaceChildren(h('div', { class: 'title-sec' }, tbar, h('div', { class: 'detail' }, ...top), coll), more);
   document.title = `${t.title} · sightseerr`;
-  setHeadTitle(t.title, view.querySelector('.d-title h1'), more.querySelector('.section-head'));
+  titleBar(tbar, view.querySelector('.d-title h1'));
   if (!isWide) dockRequest(actions.querySelector('.btn.req'), actions.querySelector('.star-btn'));
 }
 
@@ -730,26 +732,26 @@ function dockRequest(btn, star) {
   dockWatch();
 }
 
-// Once the page's title has scrolled under the header, the header shows it
-// next to the wordmark. Once "More like <title>" sticks under the header, the
-// header's title fades away again: the bar already names it. Three states:
-// none (the h1 is on screen), head, more.
-const headTitle = $('headTitle');
-let headWatch = null;
-function setHeadTitle(text, h1, moreHead) {
-  window.removeEventListener('scroll', headWatch);
-  headTitle.classList.remove('show');
-  headWatch = null;
-  if (!text) return;
-  headTitle.querySelector('.txt').textContent = text;
-  headWatch = () => {
-    if (!h1.isConnected) { window.removeEventListener('scroll', headWatch); return; }
-    const bar = topbar.offsetHeight;
-    const stuck = moreHead && moreHead.getBoundingClientRect().top <= bar;
-    headTitle.classList.toggle('show', !stuck && h1.getBoundingClientRect().bottom < bar);
+// A title page's title bar: a section header over the top part, invisible
+// until the big title has scrolled under it, then faded in; "More like
+// <title>" pushes it out as Library's section headers push each other. The
+// details are pulled up under it by its height (--titlebar, style.css), so
+// nothing moves when it shows, and the collection's bar sticks just below it.
+let titleWatch = null;
+let titleFit = null;
+function titleBar(bar, h1) {
+  window.removeEventListener('scroll', titleWatch);
+  titleFit?.disconnect();
+  titleWatch = titleFit = null;
+  if (!bar) return;
+  titleFit = new ResizeObserver(() => bar.parentElement.style.setProperty('--titlebar', `${bar.offsetHeight}px`));
+  titleFit.observe(bar);
+  titleWatch = () => {
+    if (!h1.isConnected) { window.removeEventListener('scroll', titleWatch); return; }
+    bar.classList.toggle('show', h1.getBoundingClientRect().bottom < topbar.offsetHeight + bar.offsetHeight);
   };
-  window.addEventListener('scroll', headWatch, { passive: true });
-  headWatch();
+  window.addEventListener('scroll', titleWatch, { passive: true });
+  titleWatch();
 }
 
 // watchlistButton puts the title on your Seerr watchlist, or takes it off:

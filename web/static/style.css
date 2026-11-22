@@ -208,17 +208,28 @@ a.card:active { transform: scale(.96); }
 .poster-link { display: block; color: inherit; border-radius: 18px; transition: transform .28s var(--ease); }
 .poster-link:active { transform: scale(.96); }
 
-/* Header: on a title page, its title fades in by the wordmark once scrolled past,
-   and out again once "More like <title>" sticks below it. */
-.head-title { display: flex; align-items: center; gap: 10px; min-width: 0; margin-left: -30px; opacity: 0;
-  transition: opacity .22s ease; pointer-events: none; }
-.head-title.show { opacity: 1; }
-.head-title .bar { width: 1px; height: 18px; background: rgba(255,255,255,.2); flex: none; }
+/* A title page's title bar (app.js titleBar): a section header over the top
+   part (details and collection), faded in once the big title has scrolled
+   under it. Above the page's own top row (back and Path, z-index 6). */
+.title-bar { z-index: 7; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+.title-bar.show { opacity: 1; }
+.title-bar h2 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The bar takes its own room at the top; the details are pulled up into it,
+   so the page lays out as if it weren't there. */
+.title-sec > .detail { margin-top: calc(-1 * var(--titlebar, 0px)); }
+/* The handover: a sticky bar is held inside its section's content box (padding
+   and margins don't count), so the gap before "More like …" is the section's
+   last content, not padding. The section then ends exactly where "More like …"
+   begins, and the title bar leaves just as that one arrives (as Library's
+   sections do). */
+.title-sec::after { content: ''; display: block; height: 30px; }
+/* The collection's bar sticks just below the title bar; "Part of" lands it there. */
+.title-sec .coll-bar { top: calc(var(--topbar, 60px) + var(--titlebar, 0px) - 2px); }
+.title-sec .coll { scroll-margin-top: calc(var(--topbar, 60px) + var(--titlebar, 0px)); }
 /* "More like" and the title are two flex items, so a long title ends in an
    ellipsis while "More like" stays whole. */
 .more .title-row h2 { display: flex; min-width: 0; white-space: nowrap; }
 .more .more-what { min-width: 0; margin-left: .26em; overflow: hidden; text-overflow: ellipsis; }
-.head-title .txt { font-size: 16px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Buttons: coral for the action, neutral once done, outlined otherwise. */
 .btn { height: 54px; padding: 0 26px; border-radius: 16px; border: 0; cursor: pointer; font-size: 17px; font-weight: 700; color: #fff;
@@ -432,8 +443,9 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 .coll-row.current { border-color: oklch(0.68 0.2 262 / .55); background: oklch(0.68 0.2 262 / .1); }
 .state.here { background: oklch(0.68 0.2 262 / .3); color: #dde4ff; }
 
-/* More like this: a pinned heading over the grid. */
-.more { margin-top: 30px; }
+/* More like <title>: a pinned heading over the grid. Its space above is the
+   top part's padding (.title-sec), so the two bars hand over without a gap. */
+.more { margin-top: 0; }
 .more > .grid { margin-top: 16px; padding-bottom: 10px; }
 .more-empty { margin-top: 14px; }
 
