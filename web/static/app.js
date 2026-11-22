@@ -322,6 +322,8 @@ const ICONS = {
   path: '<svg class="ico path" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="2.5"/></svg>',
   back: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
   down: '<svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+  // The desktop pill's: points right, and left while the panel is open.
+  side: '<svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
   right: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
   x: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
 };
@@ -428,7 +430,7 @@ async function renderTitle(seq, type, id, q) {
   const isWide = wide();
 
   // The path pill: a dropdown on a phone, the side panel on desktop.
-  const pill = h('button', { class: 'path-pill', type: 'button', 'aria-expanded': 'false' }, svg(ICONS.path), h('span', { text: 'Path' }), svg(ICONS.down));
+  const pill = h('button', { class: 'path-pill', type: 'button', 'aria-expanded': 'false' }, svg(ICONS.path), h('span', { text: 'Path' }), svg(isWide ? ICONS.side : ICONS.down));
   const pathWrap = h('div', { class: 'path-wrap' }, pill);
   if (isWide) {
     if (panelWanted()) { pill.classList.add('on'); showPanel(d, root, false); } else closePanel();

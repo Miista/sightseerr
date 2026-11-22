@@ -35,6 +35,9 @@
 [hidden] { display: none !important; }
 body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Bricolage Grotesque', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 a { color: oklch(0.78 0.15 262); text-decoration: none; }
+/* No grey box over links and buttons when tapped (Safari's tap highlight);
+   cards and buttons give their own feedback (press scale, colour). */
+a, button, summary { -webkit-tap-highlight-color: transparent; }
 a:hover { color: #fff; }
 button { font: inherit; color: inherit; }
 @keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
@@ -224,7 +227,8 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 .path-wrap { position: relative; }
 .path-pill { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 13px; border-radius: 999px; cursor: pointer; color: var(--text);
   background: rgba(9,11,16,.55); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.12); font-size: 15px; font-weight: 600; }
-.path-pill.open .chev { transform: rotate(180deg); }
+.path-pill.open .chev, .path-pill.on .chev { transform: rotate(180deg); } /* dropdown open / panel open */
+.ico.chev { transition: transform .25s var(--ease); }
 .path-pill.on { background: oklch(0.68 0.2 262 / .2); border-color: oklch(0.68 0.2 262 / .5); }
 .path-drop { position: absolute; top: calc(100% + 8px); right: 0; width: 300px; max-width: calc(100vw - 2 * var(--gutter)); padding: 18px 20px; border-radius: 22px;
   background: rgba(24,22,32,.96); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 24px 50px -10px rgba(0,0,0,.7);
