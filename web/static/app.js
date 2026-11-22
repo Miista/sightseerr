@@ -501,18 +501,26 @@ async function renderTitle(seq, type, id, q) {
     actions.append(h('button', { class: 'btn req done', disabled: true, text: label }));
   }
 
-  // The collection: other parts only, collapsed under a pinned bar.
-  const others = (d.collection || []).filter((p) => !p.current);
+  // The collection, collapsed under a pinned bar: every part in release
+  // order, the one you're on marked "You're here" (and not a link).
+  const parts = d.collection || [];
+  const others = parts.filter((p) => !p.current);
   let coll = null;
   if (t.collection && others.length) {
-    const list = h('div', { class: 'coll-list', hidden: true }, ...others.map((p) =>
-      h('a', { class: 'coll-row', href: onward(p) },
+    const list = h('div', { class: 'coll-list', hidden: true }, ...parts.map((p) => {
+      const kids = [
         p.poster ? h('img', { src: IMG + 'w154' + p.poster, alt: '', loading: 'lazy' }) : h('div', { class: 'coll-noimg' }),
         h('div', { class: 'coll-text' },
           h('span', { class: `kind ${p.type}`, text: p.type === 'tv' ? 'Series' : 'Movie' }),
           h('div', { class: 'coll-name', text: p.title }),
-          h('div', { class: 'coll-meta' }, h('span', { text: p.year || 'Coming' }), PART_STATES[p.state] ? h('span', { class: `state ${p.state}`, text: PART_STATES[p.state] }) : null)),
-        svg(ICONS.right))));
+          h('div', { class: 'coll-meta' }, h('span', { text: p.year || 'Coming' }),
+            p.current ? h('span', { class: 'state here', text: 'You\'re here' })
+              : PART_STATES[p.state] ? h('span', { class: `state ${p.state}`, text: PART_STATES[p.state] }) : null)),
+      ];
+      return p.current
+        ? h('div', { class: 'coll-row current', 'aria-current': 'page' }, ...kids)
+        : h('a', { class: 'coll-row', href: onward(p) }, ...kids, svg(ICONS.right));
+    }));
     const bar = h('button', { class: 'coll-bar', type: 'button', 'aria-expanded': 'false' },
       h('div', {},
         h('div', { class: 'kicker', text: `Collection · ${others.length} more title${others.length === 1 ? '' : 's'}` }),

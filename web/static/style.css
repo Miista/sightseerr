@@ -370,6 +370,9 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 .state.library { background: oklch(0.5 0.13 150 / .85); }
 .state.requested { background: oklch(0.6 0.14 75 / .85); }
 .state.watched { background: rgba(255,255,255,.1); color: var(--text-2); }
+/* The part you're on: outlined in the accent, labelled, not a link. */
+.coll-row.current { border-color: oklch(0.68 0.2 262 / .55); background: oklch(0.68 0.2 262 / .1); }
+.state.here { background: oklch(0.68 0.2 262 / .3); color: #dde4ff; }
 
 /* More like this: a pinned heading over the grid. */
 .more { margin-top: 30px; }
