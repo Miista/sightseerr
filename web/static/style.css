@@ -298,6 +298,7 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
   padding: 12px 20px; background: rgba(9,11,16,.94); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
   box-shadow: 0 -16px 24px -8px rgba(9,11,16,.9); border-top: 1px solid rgba(255,255,255,.08); animation: dockIn .18s ease both; }
 .req-dock .btn { flex: 1; width: auto; margin: 0; }
+.req-dock .btn.req { width: auto; margin: 0; } /* beats the later .btn.req { margin-top: 22px } */
 .req-dock .btn.star-btn { flex: none; width: 54px; }
 @media (min-width: 821px) { .req-dock { display: none; } }
 
