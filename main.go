@@ -132,7 +132,9 @@ func main() {
 	// Authelia serves the profile and email, only when groups were requested.
 	gate, err := authy.FromEnv(ctx, appName, authy.WithDataDir(filepath.Join(cfg.dataDir, "auth")),
 		authy.WithScopes("openid", "profile", "email", "groups"),
-		authy.WithPublicPaths("/favicon.svg"))
+		// Icons and the manifest are fetched by the browser and the phone's home
+		// screen without a session (the manifest never sends cookies).
+		authy.WithPublicPaths("/favicon.svg", "/manifest.webmanifest", "/icons/"))
 	if err != nil {
 		logger.Fatal().Err(err).Msg("login is misconfigured")
 	}

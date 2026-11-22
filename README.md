@@ -1,3 +1,5 @@
+<img src="web/static/favicon.svg" width="72" height="72" alt="">
+
 # sightseerr
 
 A companion to [Seerr](https://github.com/seerr-team/seerr): a per-person wall of movies and shows you don't have yet, each "because you

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -807,6 +808,39 @@ func TestPageRoutesServeThePage(t *testing.T) {
 	as(t, "alice@example.com")
 	if w, _ := h.do(t, "GET", "/api/title/person/5", ""); w.Code != http.StatusNotFound {
 		t.Errorf("unknown media type: %d, want 404", w.Code)
+	}
+}
+
+// The shipped icons: the manifest is served as one, every icon it names
+// exists, and so do the favicon and the touch icon the page links.
+func TestShippedIcons(t *testing.T) {
+	h := newHarness(t)
+	static, err := fs.Sub(staticFiles, "web/static")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.srv.static = static
+	w, _ := h.do(t, "GET", "/manifest.webmanifest", "")
+	if w.Code != http.StatusOK || w.Header().Get("Content-Type") != "application/manifest+json" {
+		t.Fatalf("manifest: %d %q", w.Code, w.Header().Get("Content-Type"))
+	}
+	var m struct {
+		Icons []struct{ Src, Type string }
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil || len(m.Icons) == 0 {
+		t.Fatalf("manifest icons: %v (%v)", m.Icons, err)
+	}
+	want := map[string]string{"/favicon.svg": "image/svg+xml", "/icons/icon-180.png": "image/png"}
+	for _, ic := range m.Icons {
+		want[ic.Src] = ic.Type
+	}
+	for path, typ := range want {
+		if w, _ := h.do(t, "GET", path, ""); w.Code != http.StatusOK || w.Header().Get("Content-Type") != typ {
+			t.Errorf("GET %s: %d %q, want 200 %s", path, w.Code, w.Header().Get("Content-Type"), typ)
+		}
+	}
+	if w, _ := h.do(t, "GET", "/icons/missing.png", ""); w.Code != http.StatusNotFound {
+		t.Errorf("a missing icon: %d, want 404", w.Code)
 	}
 }
 

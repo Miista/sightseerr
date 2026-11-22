@@ -84,6 +84,10 @@ func (s *Server) Handler() http.Handler {
 	return s.logRequests(sameSiteOnly(mux))
 }
 
+// Go's built-in types don't include the web app manifest, and the image has no
+// system MIME table to fall back on.
+func init() { mime.AddExtensionType(".webmanifest", "application/manifest+json") }
+
 func (s *Server) page(w http.ResponseWriter, r *http.Request) {
 	b, err := fs.ReadFile(s.static, "index.html")
 	if err != nil {
