@@ -5,3 +5,5 @@ dist/
 .demo.env
 .env
 .DS_Store
+# design handoff bundles stay out of the repo
+*.zip
