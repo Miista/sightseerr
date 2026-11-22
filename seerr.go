@@ -602,6 +602,33 @@ func (c *seerrClient) Request(ctx context.Context, asUser int, k Key, ch Choice)
 	return c.do(ctx, http.MethodPost, "/request", asUser, body, nil)
 }
 
+// OnWatchlist says whether the title is on the Seerr user's watchlist. Seerr
+// answers it in the title's details for whoever asks, so this asks as them
+// (and isn't cached, unlike the shared details).
+func (c *seerrClient) OnWatchlist(ctx context.Context, asUser int, k Key) (bool, error) {
+	if asUser <= 0 {
+		return false, fmt.Errorf("%w: no Seerr user to ask for", errSeerr)
+	}
+	var out struct {
+		OnUserWatchlist bool `json:"onUserWatchlist"`
+	}
+	if err := c.do(ctx, http.MethodGet, fmt.Sprintf("/%s/%d", k.Type, k.ID), asUser, nil, &out); err != nil {
+		return false, err
+	}
+	return out.OnUserWatchlist, nil
+}
+
+// SetWatchlist puts the title on the Seerr user's watchlist, or takes it off.
+func (c *seerrClient) SetWatchlist(ctx context.Context, asUser int, k Key, title string, on bool) error {
+	if asUser <= 0 {
+		return fmt.Errorf("%w: no Seerr user to act as", errSeerr)
+	}
+	if on {
+		return c.do(ctx, http.MethodPost, "/watchlist", asUser, map[string]any{"tmdbId": k.ID, "mediaType": k.Type, "title": title}, nil)
+	}
+	return c.do(ctx, http.MethodDelete, fmt.Sprintf("/watchlist/%d?mediaType=%s", k.ID, k.Type), asUser, nil, nil)
+}
+
 // service is the Arr app Seerr uses for the media type.
 func service(mt MediaType) string {
 	if mt == TV {

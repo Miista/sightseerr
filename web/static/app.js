@@ -533,6 +533,7 @@ async function renderTitle(seq, type, id, q) {
   } else if (label) {
     actions.append(h('button', { class: 'btn req done', disabled: true, text: label }));
   }
+  if (d.watchlistKnown) actions.append(watchlistButton(t, d.watchlist));
 
   // The collection, collapsed under a pinned bar: every part in release
   // order, the one you're on marked "You're here" (and not a link).
@@ -678,6 +679,35 @@ function setHeadTitle(text, h1) {
   };
   window.addEventListener('scroll', headWatch, { passive: true });
   headWatch();
+}
+
+// watchlistButton puts the title on your Seerr watchlist, or takes it off:
+// Seerr's star (Heroicons' outline star in amber), filled once it's on.
+const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"/></svg>';
+function watchlistButton(t, on) {
+  const btn = h('button', { class: 'btn ghost star-btn', type: 'button' }, svg(STAR));
+  const paint = () => {
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', String(on));
+    btn.setAttribute('aria-label', on ? 'Remove from watchlist' : 'Add to watchlist');
+    btn.title = on ? 'Remove from watchlist' : 'Add to watchlist';
+  };
+  paint();
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const res = await api('POST', '/api/watchlist', { type: t.type, id: t.id, on: !on });
+      on = res.watchlist;
+      paint();
+      btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
+      toast(res.dryRun ? 'Dry run: the watchlist was not changed' : on ? `${t.title} added to your watchlist` : `${t.title} removed from your watchlist`);
+    } catch (err) {
+      toast(err.message, { error: true });
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  return btn;
 }
 
 // badgeRow is the MOVIE/SERIES badge with a small ⓘ beside it that explains

@@ -196,6 +196,38 @@ func TestRequestSendsTheChoice(t *testing.T) {
 	}
 }
 
+func TestWatchlistCallsActAsThePerson(t *testing.T) {
+	stub, c := newSeerrStub(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			fmt.Fprint(w, `{"id":603,"title":"The Matrix","onUserWatchlist":true}`)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+	})
+	ctx := context.Background()
+	on, err := c.OnWatchlist(ctx, 3, Key{Movie, 603})
+	if err != nil || !on || stub.last.Header.Get("X-API-User") != "3" {
+		t.Fatalf("OnWatchlist = %v, %v as %q", on, err, stub.last.Header.Get("X-API-User"))
+	}
+	if err := c.SetWatchlist(ctx, 3, Key{Movie, 603}, "The Matrix", true); err != nil {
+		t.Fatal(err)
+	}
+	if stub.last.Method != http.MethodPost || stub.last.URL.Path != "/api/v1/watchlist" || stub.body["tmdbId"] != float64(603) || stub.body["mediaType"] != "movie" || stub.last.Header.Get("X-API-User") != "3" {
+		t.Errorf("add sent %s %s %v as %q", stub.last.Method, stub.last.URL.Path, stub.body, stub.last.Header.Get("X-API-User"))
+	}
+	if err := c.SetWatchlist(ctx, 3, Key{TV, 1399}, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if stub.last.Method != http.MethodDelete || stub.last.URL.Path != "/api/v1/watchlist/1399" || stub.last.URL.Query().Get("mediaType") != "tv" {
+		t.Errorf("remove sent %s %s", stub.last.Method, stub.last.URL)
+	}
+	// Without a person it never reaches Seerr (it would act as the admin).
+	before := stub.calls.Load()
+	if err := c.SetWatchlist(ctx, 0, Key{Movie, 1}, "", true); err == nil || stub.calls.Load() != before {
+		t.Error("watchlist change without a person reached Seerr")
+	}
+}
+
 func TestRequestOptionsUseTheDefaultNon4KServer(t *testing.T) {
 	_, c := newSeerrStub(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

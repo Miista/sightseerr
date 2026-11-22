@@ -30,6 +30,7 @@ type fakeSeerr struct {
 	options RequestOptions
 	parts   map[int][]Title // collection ID → parts
 	scores  map[Key]Ratings
+	listed  map[listKey]bool // watchlists
 
 	mu       sync.Mutex
 	requests []requested
@@ -64,6 +65,28 @@ func (f *fakeSeerr) CollectionParts(_ context.Context, id int) ([]Title, error) 
 
 func (f *fakeSeerr) Ratings(_ context.Context, k Key) (Ratings, error) {
 	return f.scores[k], nil
+}
+
+// listKey is one person's watchlist entry in the fake.
+type listKey struct {
+	user int
+	key  Key
+}
+
+func (f *fakeSeerr) OnWatchlist(_ context.Context, asUser int, k Key) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.listed[listKey{asUser, k}], nil
+}
+
+func (f *fakeSeerr) SetWatchlist(_ context.Context, asUser int, k Key, _ string, on bool) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.listed == nil {
+		f.listed = map[listKey]bool{}
+	}
+	f.listed[listKey{asUser, k}] = on
+	return nil
 }
 
 type harness struct {
@@ -427,6 +450,43 @@ func TestTitlePathAheadSeedAndMoreLikeThis(t *testing.T) {
 	h.store.db.QueryRow(`SELECT COUNT(*) FROM edges WHERE src = 'movie:55'`).Scan(&n)
 	if n != 1 {
 		t.Errorf("seed used although the path had a title (%d edges from it)", n)
+	}
+}
+
+func TestWatchlistIsThePersonsOwn(t *testing.T) {
+	h := newHarness(t)
+	as(t, "bob@example.com")
+	if _, out := h.do(t, "GET", "/api/title/movie/7", ""); out["watchlist"] != false || out["watchlistKnown"] != true {
+		t.Fatalf("before: %v / %v", out["watchlist"], out["watchlistKnown"])
+	}
+	// A field naming another person is refused, and nothing changes.
+	if w, _ := h.do(t, "POST", "/api/watchlist", `{"type":"movie","id":7,"on":true,"userId":1}`); w.Code != http.StatusBadRequest {
+		t.Fatalf("unknown field accepted: %d", w.Code)
+	}
+	if w, _ := h.do(t, "POST", "/api/watchlist", `{"type":"movie","id":7,"on":true}`); w.Code != http.StatusOK {
+		t.Fatalf("add: %d", w.Code)
+	}
+	if !h.seerr.listed[listKey{3, Key{Movie, 7}}] || h.seerr.listed[listKey{1, Key{Movie, 7}}] {
+		t.Fatalf("watchlists %v: want it on Bob's (3) only", h.seerr.listed)
+	}
+	if _, out := h.do(t, "GET", "/api/title/movie/7", ""); out["watchlist"] != true {
+		t.Errorf("after adding, the page says %v", out["watchlist"])
+	}
+	h.do(t, "POST", "/api/watchlist", `{"type":"movie","id":7,"on":false}`)
+	if h.seerr.listed[listKey{3, Key{Movie, 7}}] {
+		t.Error("still on Bob's watchlist after removing")
+	}
+	// Alice sees her own list, not Bob's.
+	h.do(t, "POST", "/api/watchlist", `{"type":"movie","id":7,"on":true}`)
+	as(t, "alice@example.com")
+	if _, out := h.do(t, "GET", "/api/title/movie/7", ""); out["watchlist"] != false {
+		t.Errorf("Alice sees Bob's watchlist: %v", out["watchlist"])
+	}
+	// A dry run changes nothing in Seerr.
+	h.srv.dryRun = true
+	h.do(t, "POST", "/api/watchlist", `{"type":"movie","id":7,"on":true}`)
+	if h.seerr.listed[listKey{1, Key{Movie, 7}}] {
+		t.Error("dry run put it on Alice's watchlist")
 	}
 }
 

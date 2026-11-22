@@ -37,13 +37,14 @@ func (t title) typ() string {
 func (t title) id() int { return int(t["id"].(float64)) }
 
 var (
-	byKey   = map[string]title{}
-	ofType  = map[string][]title{}
-	mu      sync.Mutex
-	status  = map[string]int{"movie:27205": 5, "movie:604": 5, "movie:218": 5, "tv:1399": 3} // Inception (watched), Reloaded and The Terminator (not) are had; GoT requested
-	reqs    = []string{"tv:1399"}
-	matrix  = []int{604, 605, 624860} // the made-up "Matrix Collection" (The Matrix itself is watched)
-	watched = []map[string]any{
+	byKey     = map[string]title{}
+	ofType    = map[string][]title{}
+	mu        sync.Mutex
+	status    = map[string]int{"movie:27205": 5, "movie:604": 5, "movie:218": 5, "tv:1399": 3} // Inception (watched), Reloaded and The Terminator (not) are had; GoT requested
+	reqs      = []string{"tv:1399"}
+	matrix    = []int{604, 605, 624860} // the made-up "Matrix Collection" (The Matrix itself is watched)
+	watchlist = map[string]bool{}       // "<seerr user>/<type>:<id>"
+	watched   = []map[string]any{
 		{"Id": "m1", "Name": "The Matrix", "Type": "Movie", "ProviderIds": map[string]string{"Tmdb": "603"}, "UserData": map[string]any{"LastPlayedDate": "2026-11-10T20:00:00Z"}},
 		{"Id": "m2", "Name": "Interstellar", "Type": "Movie", "ProviderIds": map[string]string{"Tmdb": "157336"}, "UserData": map[string]any{"LastPlayedDate": "2026-11-15T20:00:00Z"}},
 		{"Id": "m3", "Name": "Inception", "Type": "Movie", "ProviderIds": map[string]string{"Tmdb": "27205"}, "UserData": map[string]any{"LastPlayedDate": "2026-11-01T20:00:00Z"}},
@@ -127,6 +128,26 @@ func seerr(w http.ResponseWriter, r *http.Request) {
 		}
 		mu.Unlock()
 		send(w, map[string]any{"pageInfo": map[string]int{"page": 1, "pages": 1}, "results": res})
+	case p == "watchlist" && r.Method == http.MethodPost:
+		var body struct {
+			TmdbID    int    `json:"tmdbId"`
+			MediaType string `json:"mediaType"`
+		}
+		json.NewDecoder(r.Body).Decode(&body)
+		k := fmt.Sprintf("%s:%d", body.MediaType, body.TmdbID)
+		log.Printf("WATCHLIST add %s as X-API-User=%s", k, r.Header.Get("X-API-User"))
+		mu.Lock()
+		watchlist[r.Header.Get("X-API-User")+"/"+k] = true
+		mu.Unlock()
+		w.WriteHeader(http.StatusCreated)
+		send(w, map[string]any{"id": 1})
+	case len(parts) == 2 && parts[0] == "watchlist" && r.Method == http.MethodDelete:
+		k := r.URL.Query().Get("mediaType") + ":" + parts[1]
+		log.Printf("WATCHLIST remove %s as X-API-User=%s", k, r.Header.Get("X-API-User"))
+		mu.Lock()
+		delete(watchlist, r.Header.Get("X-API-User")+"/"+k)
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
 	case p == "request" && r.Method == http.MethodPost:
 		var body struct {
 			MediaType  string `json:"mediaType"`
@@ -159,6 +180,9 @@ func seerr(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		out := withStatus(t)
+		mu.Lock()
+		out["onUserWatchlist"] = watchlist[r.Header.Get("X-API-User")+"/"+parts[0]+":"+parts[1]]
+		mu.Unlock()
 		for _, id := range matrix {
 			if parts[0] == "movie" && t.id() == id {
 				out["collection"] = map[string]any{"id": 2344, "name": "The Matrix Collection"}

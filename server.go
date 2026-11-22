@@ -27,6 +27,8 @@ type seerrAPI interface {
 	Recommendations(ctx context.Context, k Key) ([]Title, error)
 	Request(ctx context.Context, asUser int, k Key, ch Choice) error
 	Ratings(ctx context.Context, k Key) (Ratings, error)
+	OnWatchlist(ctx context.Context, asUser int, k Key) (bool, error)
+	SetWatchlist(ctx context.Context, asUser int, k Key, title string, on bool) error
 	RequestOptions(ctx context.Context, mt MediaType) (RequestOptions, error)
 	CollectionParts(ctx context.Context, id int) ([]Title, error)
 }
@@ -63,6 +65,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/title/{type}/{id}", s.title)
 	mux.HandleFunc("GET /api/why/{type}/{id}", s.why)
 	mux.HandleFunc("POST /api/request", s.request)
+	mux.HandleFunc("POST /api/watchlist", s.watchlist)
 	mux.HandleFunc("GET /api/request-options/{type}", s.requestOptions)
 	mux.HandleFunc("GET /api/library", s.library)
 	mux.HandleFunc("POST /api/rating", s.rating)
@@ -251,10 +254,13 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 		recsErr  error
 		scores   Ratings
 		scoreErr error
+		listed   bool
+		listErr  error
 		steps    = make([]Step, len(trail))
 		later    = make([]Step, len(ahead))
 	)
-	wg.Add(3)
+	wg.Add(4)
+	go func() { defer wg.Done(); listed, listErr = s.seerr.OnWatchlist(ctx, su.ID, k) }()
 	go func() { defer wg.Done(); d, dErr = s.seerr.Details(ctx, k) }()
 	go func() { defer wg.Done(); recs, recsErr = s.seerr.Recommendations(ctx, k) }()
 	go func() { defer wg.Done(); scores, scoreErr = s.seerr.Ratings(ctx, k) }()
@@ -283,6 +289,9 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 	}
 	if scoreErr != nil {
 		s.log.Debug().Msg(fmt.Sprintf("no ratings for %s: %v", k, scoreErr))
+	}
+	if listErr != nil {
+		s.log.Debug().Msg(fmt.Sprintf("watchlist state of %s unknown: %v", k, listErr))
 	}
 
 	ex, seeds, ratings, err := s.exclusions(su.ID)
@@ -362,9 +371,50 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"title": d, "watched": watched, "requested": requested, "rating": ratings[k], "scores": scores,
+		"watchlist": listed, "watchlistKnown": listErr == nil,
 		"requestable":     !inLibrary(d.Status) && !requested,
 		"recommendations": more, "trail": steps, "ahead": later, "links": links, "collection": parts,
 	})
+}
+
+// watchlist puts a title on, or takes it off, the signed-in person's Seerr
+// watchlist. As with requests, the person is the session's, never the page's;
+// a dry run sends nothing.
+func (s *Server) watchlist(w http.ResponseWriter, r *http.Request) {
+	su, ok := s.who(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Type string `json:"type"`
+		ID   int    `json:"id"`
+		On   bool   `json:"on"`
+	}
+	if !readJSON(w, r, &body) {
+		return
+	}
+	mt, ok := parseMediaType(body.Type)
+	if !ok || body.ID <= 0 {
+		writeError(w, http.StatusBadRequest, errors.New("no such title"))
+		return
+	}
+	k := Key{mt, body.ID}
+	name := ""
+	if d, err := s.seerr.Details(r.Context(), k); err == nil {
+		name = d.Title.Title
+	}
+	if s.dryRun {
+		s.log.Warn().Msg(fmt.Sprintf("dry run: would %s %s on %s's watchlist", map[bool]string{true: "put", false: "take off"}[body.On], k, nameOf(su)))
+		writeJSON(w, http.StatusOK, map[string]any{"watchlist": body.On, "dryRun": true})
+		return
+	}
+	if err := s.seerr.SetWatchlist(r.Context(), su.ID, k, name, body.On); err != nil {
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.log.Info().Msg(fmt.Sprintf("%s %s %q (%s) %s their watchlist", nameOf(su), map[bool]string{true: "put", false: "took"}[body.On], name, k,
+		map[bool]string{true: "on", false: "off"}[body.On]))
+	writeJSON(w, http.StatusOK, map[string]any{"watchlist": body.On})
 }
 
 // why explains a title's score on the wall ("why this score"). hidden says

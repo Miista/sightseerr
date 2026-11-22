@@ -270,7 +270,8 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
   .d-info > .stats { margin-top: 0; padding: 14px 0; }
   .d-info .tagline { margin: 0 0 -6px; font-size: 24px; text-wrap: balance; }
   .d-info .overview { margin: 0; color: #d6d9e0; text-wrap: pretty; }
-  .d-info .actions { display: flex; flex-direction: column; }
+  .d-info .actions { display: flex; flex-wrap: nowrap; gap: 10px; }
+  .d-info .actions .btn.req { flex: 1; width: auto; }
   .d-info .btn.req { margin-top: 0; }
   .d-links { margin-top: -6px; }
   .part-of { font-size: 14px; }
@@ -325,6 +326,13 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 .score img { height: 22px; width: auto; }
 .score img.logo-wide { height: 16px; }
 .btn.req { width: 100%; margin-top: 22px; }
+/* The watchlist star beside Request: Seerr's outline star in amber, filled once on. */
+.btn.star-btn { flex: none; width: 54px; padding: 0; display: grid; place-items: center; color: #fcd34d; }
+.btn.star-btn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; transition: fill .2s; }
+.btn.star-btn.on svg { fill: currentColor; }
+.btn.star-btn:disabled { color: #fcd34d; background: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); opacity: .6; }
+.actions:has(.btn.req) .star-btn { margin-top: 22px; } /* level with Request when it sits below the stats */
+.d-info .actions .star-btn, .d-act .star-btn { margin-top: 0; }
 .btn.pop { animation: pop .45s var(--ease); }
 .d-links { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-top: 18px; }
 .part-of { margin: 0; font-size: 15px; color: var(--muted); }
