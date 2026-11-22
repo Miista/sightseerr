@@ -744,6 +744,7 @@ function setHeadTitle(text, h1, moreHead) {
   window.removeEventListener('scroll', headWatch);
   flight?.finish();
   headTitle.classList.remove('show');
+  document.body.classList.remove('glass-joined');
   headWatch = null;
   headMode = 'none';
   if (!text) return;
@@ -763,6 +764,8 @@ function setHeadTitle(text, h1, moreHead) {
     const from = was === 'head' ? txt : was === 'more' ? what : null;
     const fromBox = from?.getBoundingClientRect(), fromSize = from && parseFloat(getComputedStyle(from).fontSize);
     headTitle.classList.toggle('show', mode === 'head');
+    // Stuck under the header, the bar and the header share one pane of glass (style.css).
+    document.body.classList.toggle('glass-joined', mode === 'more');
     if (what) what.textContent = mode === 'more' ? text : 'this';
     if (was === 'head' && mode === 'more') glide(fromBox, fromSize, what, text, txt); // the header's copy goes at once, not fading
     else if (was === 'more' && mode === 'head') glide(fromBox, fromSize, txt, text);
