@@ -477,7 +477,10 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 
 .toast { position: fixed; z-index: 60; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 14px; align-items: center; justify-content: space-between;
   width: max-content; max-width: calc(100vw - 48px); padding: 14px 16px 14px 18px; border-radius: 18px; background: var(--text); color: #14121b;
-  box-shadow: 0 20px 40px -10px rgba(0,0,0,.7); font-size: 14px; font-weight: 600; animation: toastIn .3s cubic-bezier(.2,.9,.25,1.1) both; }
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,.7); font-size: 14px; font-weight: 600; animation: toastIn .3s cubic-bezier(.2,.9,.25,1.1) backwards;
+  /* Swiped off sideways (app.js): the finger's offset is `translate`, apart from the centring transform;
+     pan-y keeps a vertical drag scrolling the page. */
+  touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; }
 .toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .toast button { border: 0; background: none; color: oklch(0.5 0.22 262); font-weight: 800; cursor: pointer; padding: 0; }
 .toast.error { background: oklch(0.82 0.08 25); }

@@ -292,15 +292,57 @@ function blockSheet(t, card) {
 
 // ---------- Toast ----------
 
+// As in duva: a success leaves on its own after a few seconds; an error stays
+// until it is dismissed, being the one that must be read. Either can be swiped
+// off sideways: it follows the finger and leaves off whichever side past 80px;
+// short of that it springs back.
 let toastTimer = null;
 function toast(msg, opts = {}) {
   const el = $('toast');
   el.classList.toggle('error', !!opts.error);
+  el.style.transition = ''; el.style.translate = ''; el.style.opacity = '';
   el.replaceChildren(...[h('span', { text: msg }),
-    opts.undo ? h('button', { text: 'Undo', onclick: () => { el.hidden = true; opts.undo(); } }) : null].filter(Boolean));
+    opts.undo ? h('button', { text: 'Undo', onclick: () => { hideToast(); opts.undo(); } }) : null].filter(Boolean));
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, opts.undo ? 4500 : 4000);
+  if (!opts.error) toastTimer = setTimeout(hideToast, opts.undo ? 4500 : 4000);
+}
+function hideToast() {
+  clearTimeout(toastTimer);
+  $('toast').hidden = true;
+}
+{
+  const el = $('toast');
+  let from = null;
+  el.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return; // Undo is a tap, not a swipe
+    el.setPointerCapture(e.pointerId);
+    from = e.clientX;
+    el.style.transition = 'none';
+    clearTimeout(toastTimer); // not taken away from under the finger
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (from === null) return;
+    const dx = e.clientX - from;
+    el.style.translate = `${dx}px 0`;
+    el.style.opacity = String(Math.max(0, 1 - Math.abs(dx) / 240));
+  });
+  const up = (e) => {
+    if (from === null) return;
+    const dx = e.clientX - from;
+    from = null;
+    el.style.transition = 'translate .18s ease, opacity .18s ease';
+    if (Math.abs(dx) < 80) {
+      el.style.translate = ''; el.style.opacity = '';
+      if (!el.classList.contains('error')) toastTimer = setTimeout(hideToast, 2500);
+      return;
+    }
+    el.style.translate = `${dx < 0 ? '-' : ''}120vw 0`;
+    el.style.opacity = '0';
+    toastTimer = setTimeout(hideToast, 180);
+  };
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
 }
 
 // ---------- Discover ----------
