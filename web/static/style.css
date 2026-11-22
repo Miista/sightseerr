@@ -67,13 +67,24 @@ button { font: inherit; color: inherit; }
 /* Desktop: the tabs sit right-aligned in the header; the active one is a
    coral pill, filled like the Request button. */
 .tabs { display: flex; gap: 10px; margin-left: auto; align-self: center; }
-.tabs a { position: relative; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 999px; color: var(--muted);
+.tabs a { position: relative; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 999px; color: var(--muted); transition: color .2s .1s;
   font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .tabs a .tab-icon { width: 18px; height: 18px; }
 @media (hover: hover) { .tabs a:hover { color: var(--text); } }
-.tabs a.on { color: #fff; background: var(--action);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 8px 20px -8px oklch(0.48 0.187 35 / .8); }
+.tabs a.on { color: #fff; }
 @media (hover: hover) { .tabs a.on:hover { color: #fff; } }
+/* The active tab's coral pill: one piece per bar that slides to the tab you
+   pick (behind the whole tab on desktop, behind the icon on a phone). The
+   tabs sit above it; app.js (placeSliders) sets its size and position. */
+.tabs, .bottom-bar { isolation: isolate; }
+.tabs { position: relative; }
+.tabs a, .bottom-bar a { z-index: 1; }
+.tab-slider { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 999px; pointer-events: none; background: var(--action);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 8px 20px -8px oklch(0.48 0.187 35 / .8);
+  transition: transform .38s cubic-bezier(.22,.9,.24,1), width .38s cubic-bezier(.22,.9,.24,1), opacity .2s; }
+.tab-slider.instant { transition: none; }
+.bottom-bar .tab-slider { box-shadow: inset 0 1px 0 rgba(255,255,255,.2); }
+@media (prefers-reduced-motion: reduce) { .tab-slider { transition: none; } }
 @media (min-width: 821px) { .top-in { height: 72px; } }
 
 /* Phones: the header's tabs give way to a docked bottom bar, in the thumb
@@ -84,11 +95,11 @@ button { font: inherit; color: inherit; }
   .who { margin-left: auto; }
   .bottom-bar { display: flex; position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; height: calc(64px + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom); background: rgba(9,11,16,.9); border-top: 1px solid rgba(244,239,232,.1); }
-  .bottom-bar a { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  .bottom-bar a { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: color .2s .1s;
     color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   .bottom-bar a .tab-icon { box-sizing: content-box; padding: 4px 18px; border-radius: 999px; }
   .bottom-bar a.on { color: oklch(0.72 0.17 35); }
-  .bottom-bar a.on .tab-icon { color: #fff; background: var(--action); box-shadow: inset 0 1px 0 rgba(255,255,255,.2); }
+  .bottom-bar a.on .tab-icon { color: #fff; }
 }
 
 main { padding: 26px var(--gutter) 60px; max-width: 1320px; margin: 0 auto; }

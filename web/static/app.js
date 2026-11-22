@@ -110,7 +110,38 @@ setTopbar();
 
 function setTab(name) {
   for (const a of document.querySelectorAll('a[data-tab]')) a.classList.toggle('on', a.dataset.tab === name);
+  placeSliders(slidersPlaced);
+  slidersPlaced = true;
 }
+
+// placeSliders moves each tab bar's coral pill to its active tab: behind the
+// whole tab on desktop, behind the icon on a phone. It slides when animate
+// is set, and jumps on first load and resize. No active tab: it fades out.
+let slidersPlaced = false;
+function placeSliders(animate) {
+  for (const nav of document.querySelectorAll('.tabs, .bottom-bar')) {
+    let slider = nav.querySelector('.tab-slider');
+    if (!slider) {
+      slider = h('span', { class: 'tab-slider', 'aria-hidden': 'true' });
+      nav.prepend(slider);
+    }
+    const on = nav.querySelector('a.on');
+    if (!on || !nav.offsetParent && getComputedStyle(nav).position !== 'fixed') {
+      slider.style.opacity = on ? slider.style.opacity : '0';
+      continue;
+    }
+    const target = nav.classList.contains('bottom-bar') ? on.querySelector('.tab-icon') : on;
+    const box = nav.getBoundingClientRect(), r = target.getBoundingClientRect();
+    if (!r.width) continue; // the bar is hidden at this width
+    slider.classList.toggle('instant', !animate || slider.style.opacity === '0');
+    slider.style.width = `${r.width}px`;
+    slider.style.height = `${r.height}px`;
+    slider.style.transform = `translate(${r.left - box.left}px, ${r.top - box.top}px)`;
+    slider.style.opacity = '1';
+  }
+}
+window.addEventListener('resize', () => placeSliders(false));
+document.fonts?.ready.then(() => placeSliders(false)); // label widths change once the font is in
 
 async function render() {
   const seq = ++renderSeq;
