@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: test -z "$(gofmt -l .)"
+      - run: make test
+      # A vulnerable dependency fails the build here rather than at release.
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # The shipped Dockerfile has to build: the unit tests do not touch it. It only
+      # copies the cross-compiled binary in, so compile first.
+      - run: make image

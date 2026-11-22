@@ -1,0 +1,21 @@
+# Used by goreleaser: the binary is prebuilt and copied in from the build context.
+# The same final image as Dockerfile (distroless, unprivileged, self-probing
+# healthcheck); only where the binary comes from differs.
+FROM --platform=$BUILDPLATFORM busybox:1.37 AS data
+RUN mkdir -p /out/app/data && chown 65532:65532 /out/app/data && chmod 1777 /out/app/data
+
+FROM gcr.io/distroless/static-debian12:nonroot
+
+COPY spor /spor
+COPY --from=data /out/ /
+WORKDIR /app/data
+VOLUME /app/data
+
+ENV SPOR_DATA_DIR=/app/data
+EXPOSE 8080
+
+# No shell or curl in the image: the binary checks itself.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["/spor", "healthcheck"]
+
+ENTRYPOINT ["/spor"]
