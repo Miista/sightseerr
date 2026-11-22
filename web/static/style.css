@@ -9,7 +9,7 @@
 
 :root {
   color-scheme: dark;
-  --bg-rgb: 21 25 34;            /* #151922 (also theme-color in index.html and the manifest); the glass and bars are this, translucent */
+  --bg-rgb: 21 25 34;            /* #151922 (also in index.html, twice, and the manifest); the glass and bars are this, translucent */
   --bg: rgb(var(--bg-rgb));
   --surface: #232835;
   --text: #eef1f6;
@@ -35,6 +35,7 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+html { background: var(--bg); } /* the canvas itself (overscroll, Safari's bars); see index.html */
 body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: 'Bricolage Grotesque', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 a { color: oklch(0.78 0.15 262); text-decoration: none; }
 /* No grey box over links and buttons when tapped (Safari's tap highlight);
