@@ -163,8 +163,10 @@ a.card:active { transform: scale(.96); }
 .lib-section > .grid { margin-top: 16px; padding-bottom: 28px; gap: 24px 14px; }
 @media (min-width: 821px) { .lib-section > .grid { gap: 32px 22px; } }
 /* A jump lands with the section's header just under the title bar. */
+/* Sticky headers tuck 1px under the title bar: two translucent panels
+   meeting edge to edge can show a hairline seam (or the bar's own line). */
 .lib-section { scroll-margin-top: var(--topbar, 60px); }
-.section-head { position: sticky; top: var(--topbar, 60px); z-index: 5; display: flex; flex-direction: column; gap: 3px;
+.section-head { position: sticky; top: calc(var(--topbar, 60px) - 1px); z-index: 5; display: flex; flex-direction: column; gap: 3px;
   margin: 0 calc(-1 * var(--gutter)); padding: 12px var(--gutter); border-bottom: 1px solid rgba(255,255,255,.06); } /* glass: see .top */
 .section-head .title-row { display: flex; align-items: baseline; gap: 10px; }
 .section-head h2 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.03em; }
@@ -343,7 +345,7 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 
 /* The collection: collapsed under a pinned glass bar; opened, one row per part. */
 .coll { margin-top: 30px; scroll-margin-top: var(--topbar, 60px); } /* "Part of" lands the bar just under the title bar, the first row below it */
-.coll-bar { position: sticky; top: var(--topbar, 60px); z-index: 5; width: calc(100% + 2 * var(--gutter)); margin: 0 calc(-1 * var(--gutter)); padding: 12px var(--gutter);
+.coll-bar { position: sticky; top: calc(var(--topbar, 60px) - 1px); z-index: 5; width: calc(100% + 2 * var(--gutter)); margin: 0 calc(-1 * var(--gutter)); padding: 12px var(--gutter);
   display: flex; align-items: center; justify-content: space-between; gap: 14px; text-align: left; cursor: pointer; color: var(--text);
   background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
   border: 0; border-top: 1px solid rgba(255,255,255,.06); border-bottom: 1px solid rgba(255,255,255,.06); }
