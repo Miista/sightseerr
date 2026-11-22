@@ -1,5 +1,5 @@
 dist/
-/spor
+/sightseerr
 .coverage
 *.db
 .demo.env

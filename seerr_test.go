@@ -229,7 +229,7 @@ func TestWatchlistCallsActAsThePerson(t *testing.T) {
 	}
 }
 
-// The watchlist is remembered per person, and a star set through spor shows
+// The watchlist is remembered per person, and a star set through sightseerr shows
 // at once: it forgets that person's list (and only theirs).
 func TestCachedWatchlist(t *testing.T) {
 	var mu sync.Mutex

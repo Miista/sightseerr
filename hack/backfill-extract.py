@@ -1,4 +1,4 @@
-"""Build the minimal extract `spor backfill` reads, from a live jellyfin.db.
+"""Build the minimal extract `sightseerr backfill` reads, from a live jellyfin.db.
 
 Run on the Jellyfin host, never elsewhere: jellyfin.db holds password hashes.
 It takes a private snapshot with SQLite's backup API (read-only on the live

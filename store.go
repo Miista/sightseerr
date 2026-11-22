@@ -2,14 +2,18 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	_ "modernc.org/sqlite" // pure-Go SQLite driver: the binary stays CGO_ENABLED=0
 )
 
-// Store is spor's own memory: what each person watched and requested (kept
+// Store is sightseerr's own memory: what each person watched and requested (kept
 // after Jellyfin and Seerr forget it, which a reap makes them do), their
 // ratings and blocks, and the trails they followed. A person is their Seerr
 // user ID throughout.
@@ -61,6 +65,31 @@ CREATE TABLE IF NOT EXISTS request_trails (
 	at    INTEGER NOT NULL
 );
 `
+
+// storePath is the database in the data folder. Before the rename the app was
+// called spor and kept spor.db: if that is all there is, it is renamed once,
+// its -wal and -shm first, so a stop halfway leaves nothing behind (the
+// database is moved last and joins its already moved WAL). An existing
+// sightseerr.db always wins and spor.db is left alone.
+func storePath(dataDir string) (string, error) {
+	path := filepath.Join(dataDir, "sightseerr.db")
+	old := filepath.Join(dataDir, "spor.db")
+	if _, err := os.Stat(path); err == nil || !errors.Is(err, fs.ErrNotExist) {
+		return path, err
+	}
+	if _, err := os.Stat(old); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return path, nil
+		}
+		return path, err
+	}
+	for _, suffix := range []string{"-wal", "-shm", ""} {
+		if err := os.Rename(old+suffix, path+suffix); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return path, fmt.Errorf("cannot move %s to %s: %w", old+suffix, path+suffix, err)
+		}
+	}
+	return path, nil
+}
 
 func openStore(path string) (*Store, error) {
 	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(on)")
@@ -119,7 +148,7 @@ func (s *Store) AddWatched(user int, ws []Watched) error {
 	return tx.Commit()
 }
 
-// AddWatchedIfMissing records watched titles only where spor has nothing on
+// AddWatchedIfMissing records watched titles only where sightseerr has nothing on
 // the title yet. Used by the one-off backfill, so running it twice, or after
 // the live sync, changes nothing. It reports how many it added.
 func (s *Store) AddWatchedIfMissing(user int, ws []Watched) (int, error) {
@@ -174,7 +203,7 @@ func (s *Store) Seeds(user int) ([]Seed, error) {
 	return out, rows.Err()
 }
 
-// HasWatched reports whether the person watched the title, as spor knows it.
+// HasWatched reports whether the person watched the title, as sightseerr knows it.
 func (s *Store) HasWatched(user int, k Key) (bool, error) {
 	var n int
 	err := s.db.QueryRow(`SELECT COUNT(*) FROM seeds WHERE user = ? AND type = ? AND tmdb = ? AND watched_at IS NOT NULL`,

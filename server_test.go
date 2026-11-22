@@ -133,7 +133,7 @@ func newHarness(t *testing.T) *harness {
 	statuses.set(nil)
 	srv := &Server{
 		seerr: fs, store: st, people: people, statuses: statuses, ready: func() bool { return true },
-		static: fstest.MapFS{"index.html": {Data: []byte("<!doctype html>spor")}},
+		static: fstest.MapFS{"index.html": {Data: []byte("<!doctype html>sightseerr")}},
 		log:    zerolog.Nop(), now: func() time.Time { return t0 },
 	}
 	return &harness{srv: srv, seerr: fs, store: st}
@@ -328,7 +328,7 @@ func TestAnonymousOnlyWithTheOperatorsSetting(t *testing.T) {
 	h := newHarness(t)
 	as(t, "")
 	if w, _ := h.do(t, "GET", "/api/wall", ""); w.Code != http.StatusUnauthorized {
-		t.Fatalf("no login and no SPOR_ANONYMOUS_USER: %d, want 401", w.Code)
+		t.Fatalf("no login and no SIGHTSEERR_ANONYMOUS_USER: %d, want 401", w.Code)
 	}
 	h.srv.anonymous = 3
 	h.do(t, "POST", "/api/request", `{"type":"movie","id":5}`)
@@ -668,7 +668,7 @@ func TestTrailNamesFallBackToTheSeed(t *testing.T) {
 	_, out := h.do(t, "GET", "/api/title/movie/100?via=movie:7,movie:8", "")
 	trail := out["trail"].([]any)
 	if got := trail[0].(map[string]any)["title"]; got != "Interstellar" {
-		t.Errorf("seed step named %q, want Interstellar from spor's own record", got)
+		t.Errorf("seed step named %q, want Interstellar from sightseerr's own record", got)
 	}
 	// A step that is neither named by Seerr nor a seed stays unnamed, not wrong.
 	if got := trail[1].(map[string]any)["title"]; got != "" {
@@ -740,7 +740,7 @@ func TestLibraryListsWatchedTitlesNoLongerInIt(t *testing.T) {
 		m := it.(map[string]any)
 		got = append(got, fmt.Sprintf("%v:%v:%v", m["title"], m["watched"], m["rating"]))
 	}
-	// Newest watch first; the one Seerr can't describe shows by spor's own name.
+	// Newest watch first; the one Seerr can't describe shows by sightseerr's own name.
 	if strings.Join(got, " ") != "Gone show:true:0 Reaped:true:1" {
 		t.Fatalf("earlier = %v", got)
 	}
@@ -800,7 +800,7 @@ func TestPageRoutesServeThePage(t *testing.T) {
 	h := newHarness(t)
 	for _, p := range []string{"/movie/603", "/tv/1399", "/library", "/blocked"} {
 		w, _ := h.do(t, "GET", p, "")
-		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "spor") {
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "sightseerr") {
 			t.Errorf("GET %s: %d %q", p, w.Code, w.Body.String())
 		}
 	}

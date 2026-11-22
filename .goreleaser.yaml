@@ -1,5 +1,5 @@
 version: 2
-project_name: spor
+project_name: sightseerr
 
 builds:
   - main: .
@@ -20,30 +20,30 @@ dockers:
     goarch: amd64
     dockerfile: Dockerfile.goreleaser
     image_templates:
-      - ghcr.io/miista/spor:{{ .Version }}-amd64
+      - ghcr.io/miista/sightseerr:{{ .Version }}-amd64
     build_flag_templates:
       - --platform=linux/amd64
-      - --label=org.opencontainers.image.source=https://github.com/Miista/spor
+      - --label=org.opencontainers.image.source=https://github.com/Miista/sightseerr
       - --label=org.opencontainers.image.version={{ .Version }}
   - use: buildx
     goarch: arm64
     dockerfile: Dockerfile.goreleaser
     image_templates:
-      - ghcr.io/miista/spor:{{ .Version }}-arm64
+      - ghcr.io/miista/sightseerr:{{ .Version }}-arm64
     build_flag_templates:
       - --platform=linux/arm64
-      - --label=org.opencontainers.image.source=https://github.com/Miista/spor
+      - --label=org.opencontainers.image.source=https://github.com/Miista/sightseerr
       - --label=org.opencontainers.image.version={{ .Version }}
 
 docker_manifests:
-  - name_template: ghcr.io/miista/spor:{{ .Version }}
+  - name_template: ghcr.io/miista/sightseerr:{{ .Version }}
     image_templates:
-      - ghcr.io/miista/spor:{{ .Version }}-amd64
-      - ghcr.io/miista/spor:{{ .Version }}-arm64
-  - name_template: ghcr.io/miista/spor:latest
+      - ghcr.io/miista/sightseerr:{{ .Version }}-amd64
+      - ghcr.io/miista/sightseerr:{{ .Version }}-arm64
+  - name_template: ghcr.io/miista/sightseerr:latest
     image_templates:
-      - ghcr.io/miista/spor:{{ .Version }}-amd64
-      - ghcr.io/miista/spor:{{ .Version }}-arm64
+      - ghcr.io/miista/sightseerr:{{ .Version }}-amd64
+      - ghcr.io/miista/sightseerr:{{ .Version }}-arm64
 
 changelog:
   use: github-native

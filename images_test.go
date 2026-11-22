@@ -41,14 +41,14 @@ func TestImagePathRefusesAnythingButTMDbImages(t *testing.T) {
 		t.Fatalf("good image refused: %q, %v", p, err)
 	}
 	for _, c := range [][2]string{
-		{"w999", "abc.jpg"},          // a size the page doesn't use
-		{"original", "abc.jpg"},      // ditto
-		{"w342", "../spor.db"},       // out of the folder
-		{"w342", "..%2Fspor.db"},     // ditto, encoded
-		{"w342", "a/b.jpg"},          // a path, not a name
-		{"w342", "abc.svg"},          // not a TMDb image type
-		{"w342", ".jpg"},             // no name
-		{"w342", "x.jpg?u=http://e"}, // anything extra
+		{"w999", "abc.jpg"},            // a size the page doesn't use
+		{"original", "abc.jpg"},        // ditto
+		{"w342", "../sightseerr.db"},   // out of the folder
+		{"w342", "..%2Fsightseerr.db"}, // ditto, encoded
+		{"w342", "a/b.jpg"},            // a path, not a name
+		{"w342", "abc.svg"},            // not a TMDb image type
+		{"w342", ".jpg"},               // no name
+		{"w342", "x.jpg?u=http://e"},   // anything extra
 	} {
 		if _, err := s.path(c[0], c[1]); !errors.Is(err, errNoSuchImage) {
 			t.Errorf("path(%q, %q) accepted", c[0], c[1])
@@ -113,7 +113,7 @@ func TestImageRouteServesAndCaches(t *testing.T) {
 	if w.Code != http.StatusOK || w.Body.String() != "image /w342/poster.jpg" || !strings.Contains(w.Header().Get("Cache-Control"), "immutable") {
 		t.Fatalf("got %d %q (Cache-Control %q)", w.Code, w.Body.String(), w.Header().Get("Cache-Control"))
 	}
-	for _, p := range []string{"/img/w999/poster.jpg", "/img/w342/missing.jpg", "/img/w342/..%2Fspor.db"} {
+	for _, p := range []string{"/img/w999/poster.jpg", "/img/w342/missing.jpg", "/img/w342/..%2Fsightseerr.db"} {
 		if w, _ := h.do(t, "GET", p, ""); w.Code != http.StatusNotFound {
 			t.Errorf("GET %s: %d, want 404", p, w.Code)
 		}

@@ -10,7 +10,7 @@ import (
 )
 
 // statusBook is Seerr's status for every title it has a record of, refreshed
-// by the sync and nudged when spor itself makes a request.
+// by the sync and nudged when sightseerr itself makes a request.
 type statusBook struct {
 	mu       sync.RWMutex
 	statuses map[Key]int

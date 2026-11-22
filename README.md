@@ -1,6 +1,6 @@
-# spor
+# sightseerr
 
-A per-person wall of movies and shows you don't have yet, each "because you
+A companion to [Seerr](https://github.com/seerr-team/seerr): a per-person wall of movies and shows you don't have yet, each "because you
 watched X" (or requested or starred X). Click a poster for its summary, a
 Request button, a watchlist star and its own recommendations; keep clicking to
 explore. The breadcrumb shows the trail that led you there. No AI:
@@ -23,7 +23,7 @@ recommendations are TMDb's, through Seerr.
   - **Watchlist**: your starred titles; remove the star here.
 - **Blocked**: unblock.
 
-spor keeps its own copy of each person's watch history and requests, so a
+sightseerr keeps its own copy of each person's watch history and requests, so a
 title deleted after watching (reaparr) still counts.
 
 ## Weighting
@@ -47,36 +47,36 @@ a star. The ⓘ on a title page ("why this score") shows the sum.
 
 | Variable | |
 |---|---|
-| `SPOR_SEERR_URL`, `SPOR_SEERR_API_KEY` | Seerr and its API key (admin-level: kept server-side only) |
-| `SPOR_JELLYFIN_URL`, `SPOR_JELLYFIN_API_KEY` | Jellyfin and an API key (reads every user's watch history) |
-| `SPOR_USER_MAP` | Optional `email=seerr-user-id,...` for logins whose email differs from their Seerr email |
-| `SPOR_SYNC_INTERVAL` | How often history is copied from Jellyfin/Seerr. Default `15m`, minimum `1m` |
-| `SPOR_OIDC_*`, `SPOR_AUTH_DISABLED`, ... | Login, see [authy](https://github.com/miista/authy). Scopes asked: `openid profile email groups` |
-| `SPOR_ANONYMOUS_USER` | Only with `SPOR_AUTH_DISABLED=true` (local trials): the Seerr user everyone acts as |
-| `SPOR_DATA_DIR` | Default `/app/data`: `spor.db` (SQLite), `auth/`, and `images/`, the posters spor serves so the page never contacts TMDb (a cache: safe to delete, not worth backing up) |
-| `SPOR_ADDR`, `SPOR_LOG_LEVEL` | Default `:8080`, `info` |
+| `SIGHTSEERR_SEERR_URL`, `SIGHTSEERR_SEERR_API_KEY` | Seerr and its API key (admin-level: kept server-side only) |
+| `SIGHTSEERR_JELLYFIN_URL`, `SIGHTSEERR_JELLYFIN_API_KEY` | Jellyfin and an API key (reads every user's watch history) |
+| `SIGHTSEERR_USER_MAP` | Optional `email=seerr-user-id,...` for logins whose email differs from their Seerr email |
+| `SIGHTSEERR_SYNC_INTERVAL` | How often history is copied from Jellyfin/Seerr. Default `15m`, minimum `1m` |
+| `SIGHTSEERR_OIDC_*`, `SIGHTSEERR_AUTH_DISABLED`, ... | Login, see [authy](https://github.com/miista/authy). Scopes asked: `openid profile email groups` |
+| `SIGHTSEERR_ANONYMOUS_USER` | Only with `SIGHTSEERR_AUTH_DISABLED=true` (local trials): the Seerr user everyone acts as |
+| `SIGHTSEERR_DATA_DIR` | Default `/app/data`: `sightseerr.db` (SQLite), `auth/`, and `images/`, the posters sightseerr serves so the page never contacts TMDb (a cache: safe to delete, not worth backing up) |
+| `SIGHTSEERR_ADDR`, `SIGHTSEERR_LOG_LEVEL` | Default `:8080`, `info` |
 
 A signed-in person is matched to their Seerr account by email, then to Jellyfin
 through the Seerr account's linked Jellyfin user.
 
 ## One-off backfill
 
-Titles watched *and* deleted before spor's first sync live only in Jellyfin's
+Titles watched *and* deleted before sightseerr's first sync live only in Jellyfin's
 database (on `PLACEHOLDER` rows). To import them once, from a **copy**:
 
 ```
-spor backfill /path/to/copy-of-jellyfin.db   # needs SPOR_SEERR_URL/_API_KEY, SPOR_DATA_DIR
+sightseerr backfill /path/to/copy-of-jellyfin.db   # needs SIGHTSEERR_SEERR_URL/_API_KEY, SIGHTSEERR_DATA_DIR
 ```
 
-Only titles spor knows nothing about are added (safe to re-run). Delete the copy afterwards.
+Only titles sightseerr knows nothing about are added (safe to re-run). Delete the copy afterwards.
 
 ## Develop
 
 ```
 make test                 # -race -shuffle=on
 go run ./hack/fakeback    # fake Seerr :5055 + Jellyfin :8096 (public TMDb data, made-up people)
-SPOR_SEERR_URL=http://localhost:5055 SPOR_SEERR_API_KEY=x \
-SPOR_JELLYFIN_URL=http://localhost:8096 SPOR_JELLYFIN_API_KEY=x \
-SPOR_AUTH_DISABLED=true SPOR_ANONYMOUS_USER=1 SPOR_DATA_DIR=/tmp/spor go run .
+SIGHTSEERR_SEERR_URL=http://localhost:5055 SIGHTSEERR_SEERR_API_KEY=x \
+SIGHTSEERR_JELLYFIN_URL=http://localhost:8096 SIGHTSEERR_JELLYFIN_API_KEY=x \
+SIGHTSEERR_AUTH_DISABLED=true SIGHTSEERR_ANONYMOUS_USER=1 SIGHTSEERR_DATA_DIR=/tmp/sightseerr go run .
 make image                # cross-compiles, then builds from the binary
 ```

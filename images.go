@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// imageStore serves TMDb posters and backdrops from spor itself, so the page
+// imageStore serves TMDb posters and backdrops from sightseerr itself, so the page
 // never talks to image.tmdb.org: each image is fetched once, kept on disk and
 // served from there. A TMDb image path names one fixed picture (a new picture
 // gets a new path), so a stored copy never goes stale.

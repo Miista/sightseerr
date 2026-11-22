@@ -5,14 +5,13 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// The one-off backfill (`spor backfill <copy of jellyfin.db>`) recovers what
-// was watched and reaped before spor's first sync. Jellyfin keeps the watch
+// The one-off backfill (`sightseerr backfill <copy of jellyfin.db>`) recovers what
+// was watched and reaped before sightseerr's first sync. Jellyfin keeps the watch
 // data of a deleted item on a PLACEHOLDER row, keyed by the item's provider
 // IDs: a movie leaves rows keyed by its TMDb ID and by its IMDb ID (and one by
 // a GUID), all with the same user and last-played time. Jellyfin's API doesn't
@@ -29,7 +28,7 @@ import (
 // kept only when both lookups find the same show. The show then counts as
 // watched, as the live sync does for a played episode.
 //
-// Rows with only a GUID can't be resolved and are skipped. Only titles spor
+// Rows with only a GUID can't be resolved and are skipped. Only titles sightseerr
 // knows nothing about are added, so running it twice changes nothing.
 
 // placeholderWatch is one deleted item's watch data for one person.
@@ -153,11 +152,11 @@ func firstShow(ctx context.Context, seerr backfillSeerr, query string) (Title, b
 }
 
 func runBackfill(ctx context.Context, dbPath string, getenv func(string) string, out io.Writer) error {
-	seerrURL, seerrKey := getenv("SPOR_SEERR_URL"), getenv("SPOR_SEERR_API_KEY")
+	seerrURL, seerrKey := getenv("SIGHTSEERR_SEERR_URL"), getenv("SIGHTSEERR_SEERR_API_KEY")
 	if seerrURL == "" || seerrKey == "" {
-		return fmt.Errorf("SPOR_SEERR_URL and SPOR_SEERR_API_KEY must be set")
+		return fmt.Errorf("SIGHTSEERR_SEERR_URL and SIGHTSEERR_SEERR_API_KEY must be set")
 	}
-	dataDir := getenv("SPOR_DATA_DIR")
+	dataDir := getenv("SIGHTSEERR_DATA_DIR")
 	if dataDir == "" {
 		dataDir = defaultDataDir
 	}
@@ -184,7 +183,11 @@ func runBackfill(ctx context.Context, dbPath string, getenv func(string) string,
 		}
 	}
 
-	store, err := openStore(filepath.Join(dataDir, "spor.db"))
+	path, err := storePath(dataDir)
+	if err != nil {
+		return err
+	}
+	store, err := openStore(path)
 	if err != nil {
 		return err
 	}

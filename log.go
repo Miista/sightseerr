@@ -9,7 +9,7 @@ import (
 
 // newLogger builds the process-wide zerolog.Logger using ConsoleWriter: a coloured,
 // human-readable line ("TIME LEVEL message key=value ...") rather than a raw structured
-// dump. The level comes from SPOR_LOG_LEVEL so verbosity can be turned up without a rebuild.
+// dump. The level comes from SIGHTSEERR_LOG_LEVEL so verbosity can be turned up without a rebuild.
 //
 // Call sites build a complete, readable sentence (fmt.Sprintf) and pass it as the message
 // with no extra fields. Fields that ARE attached (a startup config dump, "component") are

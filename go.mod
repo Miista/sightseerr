@@ -1,4 +1,4 @@
-module github.com/miista/spor
+module github.com/miista/sightseerr
 
 go 1.27.2
 

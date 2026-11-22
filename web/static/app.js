@@ -6,7 +6,7 @@
 // here is only for the person.
 
 const $ = (id) => document.getElementById(id);
-const IMG = '/img/'; // TMDb images, served (and kept) by spor: the page makes no outside requests
+const IMG = '/img/'; // TMDb images, served (and kept) by sightseerr: the page makes no outside requests
 const view = $('view');
 
 let me = null;        // /api/me
@@ -56,17 +56,17 @@ const keyOf = (t) => `${t.type}:${t.id}`;
 
 // Where each page was scrolled to, so going back (or returning to Discover
 // from Library) lands where you left off. Kept for the browser session.
-const scrolls = JSON.parse(sessionStorage.getItem('spor.scrolls') || '{}');
+const scrolls = JSON.parse(sessionStorage.getItem('sightseerr.scrolls') || '{}');
 const here = () => location.pathname + location.search;
 const saveScroll = () => {
   scrolls[here()] = Math.round(scrollY);
-  sessionStorage.setItem('spor.scrolls', JSON.stringify(scrolls));
+  sessionStorage.setItem('sightseerr.scrolls', JSON.stringify(scrolls));
 };
 history.scrollRestoration = 'manual'; // the page renders after fetching, so do it ourselves
 
 // The last place in Discover (the wall, or a title with its trail): the
 // Discover tab brings you back there from Library rather than to the wall.
-let lastDiscover = sessionStorage.getItem('spor.discover') || '/';
+let lastDiscover = sessionStorage.getItem('sightseerr.discover') || '/';
 // Where you are counts as Discover on the wall, and on a title page unless
 // the chain started in Library (root=library), which keeps Library's tab lit.
 const isTitle = (path) => /^\/(movie|tv)\/\d+$/.test(path);
@@ -153,24 +153,24 @@ document.fonts?.ready.then(() => placeSliders(false)); // label widths change on
 async function render() {
   const seq = ++renderSeq;
   for (const dlg of document.querySelectorAll('dialog[open]')) dlg.close();
-  document.title = 'spor';
+  document.title = 'sightseerr';
   setHeadTitle(null);
   undock();
   if (!isTitle(location.pathname)) closePanel(); // the path panel belongs to title pages
   const path = location.pathname;
   const m = path.match(/^\/(movie|tv)\/(\d+)$/);
   if (!me) {
-    try { me = await api('GET', '/api/me'); } catch (err) { return showNote('Could not reach spor', err.message); }
+    try { me = await api('GET', '/api/me'); } catch (err) { return showNote('Could not reach sightseerr', err.message); }
     $('me').textContent = me.name || '';
   }
   if (seq !== renderSeq) return;
   if (!me.linked) {
     setTab('');
-    return showNote('Your account isn\'t linked', `${me.reason} Ask whoever runs spor to link it.`);
+    return showNote('Your account isn\'t linked', `${me.reason} Ask whoever runs sightseerr to link it.`);
   }
   if (inDiscover(path)) {
     lastDiscover = here();
-    sessionStorage.setItem('spor.discover', lastDiscover);
+    sessionStorage.setItem('sightseerr.discover', lastDiscover);
   }
   // A title page belongs to the tab its chain started from.
   if (m) { setTab(fromLibrary() ? 'library' : 'wall'); return renderTitle(seq, m[1], Number(m[2]), new URLSearchParams(location.search)); }
@@ -341,7 +341,7 @@ async function renderWall(seq) {
 // A title's path: the titles opened before it (via) and, after jumping back,
 // the ones opened after it (ahead), plus where the chain started (root:
 // Discover or Library). It all lives in the URL, so Back, reload and shared
-// links keep it. seed (straight from Discover) is only for spor's own
+// links keep it. seed (straight from Discover) is only for sightseerr's own
 // record of what led where; it isn't part of the path you see.
 function titlePath(t, { via = [], ahead = [], root = '', seed = '' } = {}) {
   const q = [];
@@ -442,7 +442,7 @@ function centre(list) {
 }
 
 // The desktop path panel stays open across titles until closed.
-const panelWanted = () => sessionStorage.getItem('spor.panel') === '1';
+const panelWanted = () => sessionStorage.getItem('sightseerr.panel') === '1';
 function closePanel() {
   document.querySelector('.path-panel')?.remove();
   document.body.classList.remove('panel-open');
@@ -452,7 +452,7 @@ function showPanel(d, root, animate) {
   const panel = h('aside', { class: 'path-panel', 'aria-label': 'Path' },
     h('div', { class: 'panel-head' }, h('span', { class: 'kicker', text: 'How you got here' }),
       h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Close the path',
-        onclick: () => { sessionStorage.setItem('spor.panel', '0'); closePanel(); document.querySelector('.path-pill')?.classList.remove('on'); } }, svg(ICONS.x))),
+        onclick: () => { sessionStorage.setItem('sightseerr.panel', '0'); closePanel(); document.querySelector('.path-pill')?.classList.remove('on'); } }, svg(ICONS.x))),
     pathList(d, root));
   document.body.append(panel);
   document.body.classList.add('panel-open');
@@ -486,7 +486,7 @@ async function renderTitle(seq, type, id, q) {
     if (panelWanted()) { pill.classList.add('on'); showPanel(d, root, false); } else closePanel();
     pill.addEventListener('click', () => {
       const open = !document.querySelector('.path-panel');
-      sessionStorage.setItem('spor.panel', open ? '1' : '0');
+      sessionStorage.setItem('sightseerr.panel', open ? '1' : '0');
       pill.classList.toggle('on', open);
       if (open) showPanel(d, root, true); else closePanel();
     });
@@ -630,7 +630,7 @@ async function renderTitle(seq, type, id, q) {
   }
   // replaceChildren would print a missing section as the text "null".
   view.replaceChildren(...[h('div', { class: 'detail' }, ...top), coll, more].filter(Boolean));
-  document.title = `${t.title} · spor`;
+  document.title = `${t.title} · sightseerr`;
   setHeadTitle(t.title, view.querySelector('.d-title h1'));
   if (!isWide) dockRequest(actions.querySelector('.btn.req'));
 }
@@ -644,7 +644,7 @@ function undock() {
   document.querySelector('.req-dock')?.remove();
   window.removeEventListener('scroll', dockWatch);
   window.removeEventListener('resize', dockWatch);
-  window.removeEventListener('spor:sheet', dockWatch);
+  window.removeEventListener('sightseerr:sheet', dockWatch);
   dockWatch = null;
 }
 function dockRequest(btn) {
@@ -667,7 +667,7 @@ function dockRequest(btn) {
   };
   window.addEventListener('scroll', dockWatch, { passive: true });
   window.addEventListener('resize', dockWatch);
-  window.addEventListener('spor:sheet', dockWatch);
+  window.addEventListener('sightseerr:sheet', dockWatch);
   dockWatch();
 }
 
@@ -810,10 +810,10 @@ function requestDialog(t, o, send) {
 function sheet(label, ...content) {
   const dlg = h('dialog', { class: 'dialog', 'aria-label': label }, h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }), ...content);
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
-  dlg.addEventListener('close', () => { dlg.remove(); window.dispatchEvent(new Event('spor:sheet')); });
+  dlg.addEventListener('close', () => { dlg.remove(); window.dispatchEvent(new Event('sightseerr:sheet')); });
   document.body.append(dlg);
   dlg.showModal();
-  window.dispatchEvent(new Event('spor:sheet')); // the docked Request hides while a sheet is open
+  window.dispatchEvent(new Event('sightseerr:sheet')); // the docked Request hides while a sheet is open
   return dlg;
 }
 
@@ -834,7 +834,7 @@ async function renderLibrary(seq) {
   const groups = [
     ['Watched', null, data.items.filter((it) => it.watched)],
     ['Not watched', null, data.items.filter((it) => !it.watched)],
-    // Watched, but no longer in the library (reaped, or from before spor):
+    // Watched, but no longer in the library (reaped, or from before sightseerr):
     // still worth rating, since it shapes Discover.
     ['Removed', 'Watched, then deleted from the library. Ratings still count.',
       (data.earlier || []).map((it) => ({ ...it, removed: true }))],

@@ -104,7 +104,7 @@ type cachedSeerr struct {
 
 // Watchlist is asked on every wall and title page, so it is remembered for a
 // few minutes: a star set in Seerr itself shows up within that. One set
-// through spor forgets the person's list at once (SetWatchlist).
+// through sightseerr forgets the person's list at once (SetWatchlist).
 func (c *cachedSeerr) Watchlist(ctx context.Context, asUser int) ([]Title, error) {
 	return c.starred.get(ctx, Key{ID: asUser}, func(ctx context.Context, k Key) ([]Title, error) {
 		return c.seerrClient.Watchlist(ctx, k.ID)

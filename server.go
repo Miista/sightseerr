@@ -46,14 +46,14 @@ type Server struct {
 	log      zerolog.Logger
 	now      func() time.Time
 	// anonymous is the Seerr user everyone acts as when the login is off
-	// (SPOR_AUTH_DISABLED, local trials only). 0 means nobody: with no login
-	// and no SPOR_ANONYMOUS_USER, every page refuses.
+	// (SIGHTSEERR_AUTH_DISABLED, local trials only). 0 means nobody: with no login
+	// and no SIGHTSEERR_ANONYMOUS_USER, every page refuses.
 	anonymous int
 	// seerrPublic is Seerr's address as a browser reaches it, for "Open in
-	// Seerr" links (SPOR_SEERR_PUBLIC_URL, else SPOR_SEERR_URL). Empty: no links.
+	// Seerr" links (SIGHTSEERR_SEERR_PUBLIC_URL, else SIGHTSEERR_SEERR_URL). Empty: no links.
 	seerrPublic string
-	// dryRun (SPOR_REQUESTS_DRY_RUN) logs a request instead of sending it to
-	// Seerr, for trying spor against real data without downloading anything.
+	// dryRun (SIGHTSEERR_REQUESTS_DRY_RUN) logs a request instead of sending it to
+	// Seerr, for trying sightseerr against real data without downloading anything.
 	// Everything else behaves as if the request was made.
 	dryRun bool
 }
@@ -99,11 +99,11 @@ func (s *Server) page(w http.ResponseWriter, r *http.Request) {
 // user on a request.
 var userFrom = authy.UserFrom
 
-// errNotLinked is a signed-in person spor can't tie to a Seerr account.
+// errNotLinked is a signed-in person sightseerr can't tie to a Seerr account.
 var errNotLinked = errors.New("not linked")
 
 // person is the Seerr account the request acts for. It comes only from the
-// session (or the operator's SPOR_ANONYMOUS_USER with the login off), never
+// session (or the operator's SIGHTSEERR_ANONYMOUS_USER with the login off), never
 // from anything the page sends: it decides whose name goes on a request.
 func (s *Server) person(r *http.Request) (SeerrUser, error) {
 	u, ok := userFrom(r)
@@ -112,7 +112,7 @@ func (s *Server) person(r *http.Request) (SeerrUser, error) {
 			if su, ok := s.people.byID(s.anonymous); ok {
 				return su, nil
 			}
-			return SeerrUser{}, fmt.Errorf("%w: Seerr user %d (SPOR_ANONYMOUS_USER) does not exist", errNotLinked, s.anonymous)
+			return SeerrUser{}, fmt.Errorf("%w: Seerr user %d (SIGHTSEERR_ANONYMOUS_USER) does not exist", errNotLinked, s.anonymous)
 		}
 		return SeerrUser{}, errors.New("signed out")
 	}
@@ -149,7 +149,7 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 }
 
 // exclusions gathers what must not be offered to the person, and the seeds
-// to score with: what spor has stored, plus their Seerr watchlist as it is
+// to score with: what sightseerr has stored, plus their Seerr watchlist as it is
 // now. A watchlist Seerr can't give leaves both without it, rather than
 // failing the page.
 func (s *Server) exclusions(ctx context.Context, user int) (Exclusions, []Seed, map[Key]int, error) {
@@ -323,7 +323,7 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 		}
 		names[sd.Key] = sd.Title
 	}
-	// A step Seerr couldn't name may be a seed, which spor knows.
+	// A step Seerr couldn't name may be a seed, which sightseerr knows.
 	for _, ss := range [][]Step{steps, later} {
 		for i := range ss {
 			if ss[i].Title == "" {
@@ -659,7 +659,7 @@ func (s *Server) library(w http.ResponseWriter, r *http.Request) {
 		inLib[k] = true
 	}
 	// Watched titles no longer in the library (reaped, or backfilled from
-	// before spor), newest watch first: they can be rated too.
+	// before sightseerr), newest watch first: they can be rated too.
 	var gone []Seed
 	for _, sd := range seeds {
 		if sd.Watched && !inLib[sd.Key] {
@@ -700,7 +700,7 @@ func (s *Server) library(w http.ResponseWriter, r *http.Request) {
 		}
 		return 1
 	})
-	// A gone title Seerr can't describe still shows, by the name spor has:
+	// A gone title Seerr can't describe still shows, by the name sightseerr has:
 	// it was watched, so it can still be rated.
 	earlier := make([]libraryCard, 0, len(gone))
 	for _, sd := range gone {

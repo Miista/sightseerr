@@ -1,13 +1,13 @@
-// fakeback stands in for Seerr (:5055) and Jellyfin (:8096) so spor can be
+// fakeback stands in for Seerr (:5055) and Jellyfin (:8096) so sightseerr can be
 // run and looked at locally without touching the real ones. titles.json is
 // public TMDb metadata (as Seerr returns it); everything about people,
 // watches, requests and the library is made up here.
 //
 //	go run ./hack/fakeback
-//	SPOR_SEERR_URL=http://localhost:5055 SPOR_SEERR_API_KEY=x \
-//	SPOR_JELLYFIN_URL=http://localhost:8096 SPOR_JELLYFIN_API_KEY=x \
-//	SPOR_AUTH_DISABLED=true SPOR_ANONYMOUS_USER=1 SPOR_DATA_DIR=/tmp/spor \
-//	SPOR_ADDR=:8080 go run .
+//	SIGHTSEERR_SEERR_URL=http://localhost:5055 SIGHTSEERR_SEERR_API_KEY=x \
+//	SIGHTSEERR_JELLYFIN_URL=http://localhost:8096 SIGHTSEERR_JELLYFIN_API_KEY=x \
+//	SIGHTSEERR_AUTH_DISABLED=true SIGHTSEERR_ANONYMOUS_USER=1 SIGHTSEERR_DATA_DIR=/tmp/sightseerr \
+//	SIGHTSEERR_ADDR=:8080 go run .
 package main
 
 import (

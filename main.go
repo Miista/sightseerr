@@ -27,9 +27,9 @@ import (
 // version is stamped at build time (-X main.version=...).
 var version = "dev"
 
-// appName ("spor", Danish for trail) sets the authy variables (SPOR_OIDC_*).
+// appName sets the authy variables (SIGHTSEERR_OIDC_*).
 const (
-	appName        = "spor"
+	appName        = "sightseerr"
 	defaultAddr    = ":8080"
 	defaultDataDir = "/app/data"
 	defaultSync    = 15 * time.Minute
@@ -38,7 +38,7 @@ const (
 //go:embed web/static
 var staticFiles embed.FS
 
-// config is everything spor reads from the environment.
+// config is everything sightseerr reads from the environment.
 type config struct {
 	seerrURL, seerrKey       string
 	seerrPublic              string
@@ -52,14 +52,14 @@ type config struct {
 
 func loadConfig(getenv func(string) string) (config, error) {
 	c := config{
-		seerrURL: getenv("SPOR_SEERR_URL"), seerrKey: getenv("SPOR_SEERR_API_KEY"),
-		jellyfinURL: getenv("SPOR_JELLYFIN_URL"), jellyfinKey: getenv("SPOR_JELLYFIN_API_KEY"),
+		seerrURL: getenv("SIGHTSEERR_SEERR_URL"), seerrKey: getenv("SIGHTSEERR_SEERR_API_KEY"),
+		jellyfinURL: getenv("SIGHTSEERR_JELLYFIN_URL"), jellyfinKey: getenv("SIGHTSEERR_JELLYFIN_API_KEY"),
 		syncEvery: defaultSync, addr: defaultAddr, dataDir: defaultDataDir,
 	}
 	var missing []string
 	for name, v := range map[string]string{
-		"SPOR_SEERR_URL": c.seerrURL, "SPOR_SEERR_API_KEY": c.seerrKey,
-		"SPOR_JELLYFIN_URL": c.jellyfinURL, "SPOR_JELLYFIN_API_KEY": c.jellyfinKey,
+		"SIGHTSEERR_SEERR_URL": c.seerrURL, "SIGHTSEERR_SEERR_API_KEY": c.seerrKey,
+		"SIGHTSEERR_JELLYFIN_URL": c.jellyfinURL, "SIGHTSEERR_JELLYFIN_API_KEY": c.jellyfinKey,
 	} {
 		if strings.TrimSpace(v) == "" {
 			missing = append(missing, name)
@@ -71,33 +71,33 @@ func loadConfig(getenv func(string) string) (config, error) {
 	}
 	var err error
 	// Links in the page go to Seerr as the browser reaches it, which can
-	// differ from how spor reaches it (an internal Docker name).
-	c.seerrPublic = strings.TrimRight(cmp.Or(getenv("SPOR_SEERR_PUBLIC_URL"), c.seerrURL), "/")
+	// differ from how sightseerr reaches it (an internal Docker name).
+	c.seerrPublic = strings.TrimRight(cmp.Or(getenv("SIGHTSEERR_SEERR_PUBLIC_URL"), c.seerrURL), "/")
 	if u, perr := url.Parse(c.seerrPublic); perr != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return c, fmt.Errorf("SPOR_SEERR_PUBLIC_URL (or SPOR_SEERR_URL) must be an http(s) URL, not %q", c.seerrPublic)
+		return c, fmt.Errorf("SIGHTSEERR_SEERR_PUBLIC_URL (or SIGHTSEERR_SEERR_URL) must be an http(s) URL, not %q", c.seerrPublic)
 	}
-	if c.userMap, err = parseUserMap(getenv("SPOR_USER_MAP")); err != nil {
+	if c.userMap, err = parseUserMap(getenv("SIGHTSEERR_USER_MAP")); err != nil {
 		return c, err
 	}
-	if v := getenv("SPOR_ANONYMOUS_USER"); v != "" {
+	if v := getenv("SIGHTSEERR_ANONYMOUS_USER"); v != "" {
 		if c.anonymous, err = strconv.Atoi(v); err != nil || c.anonymous <= 0 {
-			return c, fmt.Errorf("SPOR_ANONYMOUS_USER must be a Seerr user ID, not %q", v)
+			return c, fmt.Errorf("SIGHTSEERR_ANONYMOUS_USER must be a Seerr user ID, not %q", v)
 		}
 	}
-	if v := getenv("SPOR_REQUESTS_DRY_RUN"); v != "" {
+	if v := getenv("SIGHTSEERR_REQUESTS_DRY_RUN"); v != "" {
 		if c.dryRun, err = strconv.ParseBool(v); err != nil {
-			return c, fmt.Errorf("SPOR_REQUESTS_DRY_RUN must be true or false, not %q", v)
+			return c, fmt.Errorf("SIGHTSEERR_REQUESTS_DRY_RUN must be true or false, not %q", v)
 		}
 	}
-	if v := getenv("SPOR_SYNC_INTERVAL"); v != "" {
+	if v := getenv("SIGHTSEERR_SYNC_INTERVAL"); v != "" {
 		if c.syncEvery, err = time.ParseDuration(v); err != nil || c.syncEvery < time.Minute {
-			return c, fmt.Errorf("SPOR_SYNC_INTERVAL must be a duration of at least 1m, not %q", v)
+			return c, fmt.Errorf("SIGHTSEERR_SYNC_INTERVAL must be a duration of at least 1m, not %q", v)
 		}
 	}
-	if v := getenv("SPOR_ADDR"); v != "" {
+	if v := getenv("SIGHTSEERR_ADDR"); v != "" {
 		c.addr = v
 	}
-	if v := getenv("SPOR_DATA_DIR"); v != "" {
+	if v := getenv("SIGHTSEERR_DATA_DIR"); v != "" {
 		c.dataDir = v
 	}
 	return c, nil
@@ -107,7 +107,7 @@ func main() {
 	if handled, code := command(os.Args[1:], os.Getenv, os.Stdout); handled {
 		os.Exit(code)
 	}
-	logger := newLogger(os.Getenv("SPOR_LOG_LEVEL"))
+	logger := newLogger(os.Getenv("SIGHTSEERR_LOG_LEVEL"))
 	cfg, err := loadConfig(os.Getenv)
 	if err != nil {
 		logger.Fatal().Msg(err.Error())
@@ -115,15 +115,19 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	store, err := openStore(filepath.Join(cfg.dataDir, "spor.db"))
+	dbPath, err := storePath(cfg.dataDir)
+	if err != nil {
+		logger.Fatal().Msg(err.Error())
+	}
+	store, err := openStore(dbPath)
 	if err != nil {
 		logger.Fatal().Msg(err.Error())
 	}
 	defer store.Close()
 
-	// Login. authy is on unless SPOR_AUTH_DISABLED=true: with no SPOR_OIDC_* the
+	// Login. authy is on unless SIGHTSEERR_AUTH_DISABLED=true: with no SIGHTSEERR_OIDC_* the
 	// first visitor creates a local account; with them the identity provider
-	// signs people in. spor needs the email (to find the person's Seerr
+	// signs people in. sightseerr needs the email (to find the person's Seerr
 	// account); groups is asked for only because authy reads UserInfo, where
 	// Authelia serves the profile and email, only when groups were requested.
 	gate, err := authy.FromEnv(ctx, appName, authy.WithDataDir(filepath.Join(cfg.dataDir, "auth")),
@@ -134,9 +138,9 @@ func main() {
 	}
 	if gate == nil {
 		if cfg.anonymous == 0 {
-			logger.Warn().Msg("login is OFF (SPOR_AUTH_DISABLED) and SPOR_ANONYMOUS_USER is unset: every page will refuse")
+			logger.Warn().Msg("login is OFF (SIGHTSEERR_AUTH_DISABLED) and SIGHTSEERR_ANONYMOUS_USER is unset: every page will refuse")
 		} else {
-			logger.Warn().Msg(fmt.Sprintf("login is OFF (SPOR_AUTH_DISABLED): anyone who can reach this port acts as Seerr user %d", cfg.anonymous))
+			logger.Warn().Msg(fmt.Sprintf("login is OFF (SIGHTSEERR_AUTH_DISABLED): anyone who can reach this port acts as Seerr user %d", cfg.anonymous))
 		}
 	}
 
@@ -159,7 +163,7 @@ func main() {
 		static: static, log: logger, now: time.Now, dryRun: cfg.dryRun, seerrPublic: cfg.seerrPublic,
 	}
 	if cfg.dryRun {
-		logger.Warn().Msg("requests are a DRY RUN (SPOR_REQUESTS_DRY_RUN): nothing is sent to Seerr")
+		logger.Warn().Msg("requests are a DRY RUN (SIGHTSEERR_REQUESTS_DRY_RUN): nothing is sent to Seerr")
 	}
 	if gate == nil {
 		srv.anonymous = cfg.anonymous // with a login, nobody is anonymous
@@ -192,7 +196,7 @@ func command(args []string, getenv func(string) string, out io.Writer) (bool, in
 		fmt.Fprintln(out, version)
 		return true, 0
 	case "healthcheck":
-		addr := getenv("SPOR_ADDR")
+		addr := getenv("SIGHTSEERR_ADDR")
 		if addr == "" {
 			addr = defaultAddr
 		}
@@ -213,7 +217,7 @@ func command(args []string, getenv func(string) string, out io.Writer) (bool, in
 		return true, 0
 	case "backfill":
 		if len(args) != 2 {
-			fmt.Fprintln(out, "usage: spor backfill <copy of jellyfin.db>")
+			fmt.Fprintln(out, "usage: sightseerr backfill <copy of jellyfin.db>")
 			return true, 2
 		}
 		if err := runBackfill(context.Background(), args[1], getenv, out); err != nil {

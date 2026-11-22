@@ -70,7 +70,7 @@ const (
 )
 
 // inLibrary reports whether Seerr's status means the title is had, on its
-// way, or deliberately kept out: anything spor must not offer as new.
+// way, or deliberately kept out: anything sightseerr must not offer as new.
 // Unknown and deleted (and no record) are fair game.
 func inLibrary(status int) bool {
 	switch status {
@@ -114,7 +114,7 @@ type Collection struct {
 }
 
 // seerrTitle is the subset of Seerr's search/recommendation results and
-// detail pages spor reads. Movies say title/releaseDate, shows name/firstAirDate.
+// detail pages sightseerr reads. Movies say title/releaseDate, shows name/firstAirDate.
 type seerrTitle struct {
 	ID              int     `json:"id"`
 	MediaType       string  `json:"mediaType"`
@@ -193,7 +193,7 @@ type SeerrUser struct {
 
 // Seerr permission bits (server/lib/permissions.ts) that let a person choose
 // the quality profile and root folder of a request. Seerr ignores the choice
-// from anyone else, so spor only offers it to these.
+// from anyone else, so sightseerr only offers it to these.
 const (
 	permAdmin           = 2
 	permManageRequests  = 16
@@ -263,7 +263,7 @@ type SeerrRequest struct {
 var errSeerr = errors.New("seerr")
 
 // seerrClient talks to Seerr's API with its API key. The key is admin-level,
-// so asUser (X-API-User) is how spor acts for a person; it must only ever
+// so asUser (X-API-User) is how sightseerr acts for a person; it must only ever
 // come from the signed-in session's mapping.
 type seerrClient struct {
 	base string

@@ -8,7 +8,7 @@ import (
 )
 
 // directory maps a signed-in person to their Seerr account: by the email
-// authy reports, unless SPOR_USER_MAP names the Seerr user for that email.
+// authy reports, unless SIGHTSEERR_USER_MAP names the Seerr user for that email.
 // The Seerr user list is refreshed by the sync.
 type directory struct {
 	overrides map[string]int // lower-cased email → Seerr user ID
@@ -29,7 +29,7 @@ func parseUserMap(s string) (map[string]int, error) {
 		n, err := strconv.Atoi(strings.TrimSpace(id))
 		email = strings.ToLower(strings.TrimSpace(email))
 		if !ok || err != nil || n <= 0 || email == "" {
-			return nil, fmt.Errorf("SPOR_USER_MAP: %q is not email=seerr-user-id", part)
+			return nil, fmt.Errorf("SIGHTSEERR_USER_MAP: %q is not email=seerr-user-id", part)
 		}
 		out[email] = n
 	}
