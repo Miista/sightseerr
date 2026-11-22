@@ -50,11 +50,19 @@ button { font: inherit; color: inherit; }
 
 
 /* The glass, shared by the title bar, the phone's tab bar and the sticky
-   section headers. Put straight on each element: that is what Safari renders
-   reliably. (Nothing fixed may sit inside a glass element, since the blur
-   makes it the containing block; that's why the phone's tab bar is its own
-   element, not the header's tabs moved.) */
-.top, .bottom-bar, .section-head { background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); }
+   section headers. (Nothing fixed may sit inside a glass element, since the
+   blur makes it the containing block; that's why the phone's tab bar is its
+   own element, not the header's tabs moved.)
+   The panes that meet (title bar, section headers, collection bar) blur from
+   a layer reaching 80px past their edges, masked back to the pane: a backdrop
+   blur is clamped at the element's edge, so two panes side by side would blur
+   two sealed-off patches and jump at the seam. Sampling past the edge, both
+   see the same content there, and the colour runs on from one into the next. */
+.bottom-bar { background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); }
+.top::before, .section-head::before, .coll-bar::before { content: ''; position: absolute; z-index: -1; left: 0; right: 0; top: -80px; bottom: -80px;
+  pointer-events: none; background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 80px, #000 80px, #000 calc(100% - 80px), transparent calc(100% - 80px));
+  mask-image: linear-gradient(to bottom, transparent 80px, #000 80px, #000 calc(100% - 80px), transparent calc(100% - 80px)); }
 
 /* Header */
 .top { position: sticky; top: 0; z-index: 10; border-bottom: 1px solid rgba(255,255,255,.06); padding-top: env(safe-area-inset-top); }
@@ -419,7 +427,7 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 .coll { margin-top: 30px; scroll-margin-top: var(--topbar, 60px); } /* "Part of" lands the bar just under the title bar, the first row below it */
 .coll-bar { position: sticky; top: calc(var(--topbar, 60px) - 1px); z-index: 5; width: calc(100% + 2 * var(--gutter)); margin: 0 calc(-1 * var(--gutter)); padding: 12px var(--gutter);
   display: flex; align-items: center; justify-content: space-between; gap: 14px; text-align: left; cursor: pointer; color: var(--text);
-  background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  background: none; /* the glass is ::before, see "The glass" */
   border: 0; border-top: 1px solid rgba(255,255,255,.06); border-bottom: 1px solid rgba(255,255,255,.06); }
 .coll-title { font-size: 20px; font-weight: 800; letter-spacing: -.02em; margin-top: 4px; }
 .round-chev { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.06); color: var(--text); }
