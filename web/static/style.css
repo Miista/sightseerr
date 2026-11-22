@@ -291,12 +291,14 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
   .coll-title { font-size: 22px; letter-spacing: -.03em; }
 }
 /* The docked Request: a near-solid bar just above the phone's tab bar while
-   the button's own place is still below the screen. */
+   the button's own place is still below the screen. Laid out like the row on
+   the page: Request stretches, the watchlist star sits beside it. */
 @keyframes dockIn { from { opacity: 0; } to { opacity: 1; } }
-.req-dock { position: fixed; z-index: 19; left: 0; right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; flex-direction: column;
+.req-dock { position: fixed; z-index: 19; left: 0; right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center;
   padding: 12px 20px; background: rgba(9,11,16,.94); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
   box-shadow: 0 -16px 24px -8px rgba(9,11,16,.9); border-top: 1px solid rgba(255,255,255,.08); animation: dockIn .18s ease both; }
-.req-dock .btn { width: 100%; margin: 0; }
+.req-dock .btn { flex: 1; width: auto; margin: 0; }
+.req-dock .btn.star-btn { flex: none; width: 54px; }
 @media (min-width: 821px) { .req-dock { display: none; } }
 
 /* The path pill and its dropdown. */
@@ -490,4 +492,6 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
     box-shadow: 0 8px 24px rgba(0,0,0,.45); }
   main:has(.segments) { padding-bottom: calc(170px + env(safe-area-inset-bottom)); }
   body:has(.segments) .toast { bottom: calc(136px + env(safe-area-inset-bottom)); }
+  /* While Request is docked, toasts clear it instead of covering its buttons. */
+  body:has(.req-dock:not([hidden])) .toast { bottom: calc(64px + var(--dock-h, 100px) + 12px + env(safe-area-inset-bottom)); }
 }

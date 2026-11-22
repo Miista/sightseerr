@@ -632,13 +632,14 @@ async function renderTitle(seq, type, id, q) {
   view.replaceChildren(...[h('div', { class: 'detail' }, ...top), coll, more].filter(Boolean));
   document.title = `${t.title} · sightseerr`;
   setHeadTitle(t.title, view.querySelector('.d-title h1'));
-  if (!isWide) dockRequest(actions.querySelector('.btn.req'));
+  if (!isWide) dockRequest(actions.querySelector('.btn.req'), actions.querySelector('.star-btn'));
 }
 
 // dockRequest: on a phone, while the Request button's place on the page is
 // still below the screen, a docked copy sits just above the tab bar; once
 // you've scrolled to the button itself, the copy goes. The copy mirrors the
 // button (label, state) and hands taps to it, and hides while a sheet is open.
+// The watchlist star beside it is docked the same way.
 let dockWatch = null;
 function undock() {
   document.querySelector('.req-dock')?.remove();
@@ -647,7 +648,7 @@ function undock() {
   window.removeEventListener('sightseerr:sheet', dockWatch);
   dockWatch = null;
 }
-function dockRequest(btn) {
+function dockRequest(btn, star) {
   undock();
   if (!btn) return;
   const copy = h('button', { type: 'button' });
@@ -655,7 +656,19 @@ function dockRequest(btn) {
   mirror();
   new MutationObserver(mirror).observe(btn, { attributes: true, childList: true, characterData: true, subtree: true });
   copy.addEventListener('click', () => btn.click());
-  const dock = h('div', { class: 'req-dock', hidden: true }, copy);
+  let starCopy = null;
+  if (star) {
+    starCopy = h('button', { type: 'button' }, svg(STAR));
+    const mirrorStar = () => {
+      starCopy.className = star.className;
+      starCopy.disabled = star.disabled;
+      for (const a of ['aria-pressed', 'aria-label', 'title']) starCopy.setAttribute(a, star.getAttribute(a) || '');
+    };
+    mirrorStar();
+    new MutationObserver(mirrorStar).observe(star, { attributes: true });
+    starCopy.addEventListener('click', () => star.click());
+  }
+  const dock = h('div', { class: 'req-dock', hidden: true }, copy, starCopy);
   document.body.append(dock);
   const bar = document.querySelector('.bottom-bar');
   dockWatch = () => {
@@ -663,7 +676,10 @@ function dockRequest(btn) {
     const limit = (bar ? bar.getBoundingClientRect().top : innerHeight) - 12;
     const docked = btn.getBoundingClientRect().bottom > limit && !document.querySelector('dialog[open]');
     dock.hidden = !docked;
+    // Toasts sit above the dock while it shows (style.css); it says how tall it is.
+    if (docked) document.documentElement.style.setProperty('--dock-h', `${dock.offsetHeight}px`);
     btn.style.visibility = docked ? 'hidden' : '';
+    if (star) star.style.visibility = docked ? 'hidden' : '';
   };
   window.addEventListener('scroll', dockWatch, { passive: true });
   window.addEventListener('resize', dockWatch);
