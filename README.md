@@ -1,20 +1,26 @@
 # spor
 
 A per-person wall of movies and shows you don't have yet, each "because you
-watched X" (or requested X). Click a poster for its summary, a Request button
-and its own recommendations; keep clicking to explore. The breadcrumb shows the
-trail that led you there. No AI: recommendations are TMDb's, through Seerr.
+watched X" (or requested or starred X). Click a poster for its summary, a
+Request button, a watchlist star and its own recommendations; keep clicking to
+explore. The breadcrumb shows the trail that led you there. No AI:
+recommendations are TMDb's, through Seerr.
 
-- **Discover**: recommendations for what you watched (Jellyfin) and requested
-  (Seerr), ranked by weight. Never shows what's in the library, on its way,
-  watched, requested or blocked. Long-press (or right-click) a poster to block it.
+- **Discover**: recommendations for what you watched (Jellyfin), requested and
+  starred (Seerr), ranked by weight (see [Weighting](#weighting)). Never shows
+  what's in the library, on its way, watched, requested, starred or blocked.
+  Long-press (or right-click) a poster to block it.
 - **Title page**: overview, Rotten Tomatoes / IMDb / TMDB scores (from Seerr),
   Request (made in Seerr **as you**, so Seerr's own permissions and
   auto-approval apply; quality profile and root folder for those Seerr lets
-  choose), the collection it belongs to, and more like it. The **Path** lists
-  the titles you tapped through, so you can jump back (and forward again).
-- **Library**: everything in the library; rate what you've watched 👍/👎.
-  Unwatched titles are greyed out ("Not watched") and can't be rated.
+  choose), the ☆ star (your Seerr watchlist, also as you), the collection it
+  belongs to, and more like it. The **Path** lists the titles you tapped
+  through, so you can jump back (and forward again).
+- **Library**, in four sections:
+  - **Watched**: in the library and seen; rate it 👍/👎.
+  - **Not watched**: in the library, not seen yet; greyed out, can't be rated.
+  - **Removed**: watched, then deleted from the library (reaparr); still rateable.
+  - **Watchlist**: your starred titles; remove the star here.
 - **Blocked**: unblock.
 
 spor keeps its own copy of each person's watch history and requests, so a
@@ -22,9 +28,20 @@ title deleted after watching (reaparr) still counts.
 
 ## Weighting
 
-A seed (watched/requested title) weighs: 👍 +1.5, watched +1.0, requested only
-+0.8, 👎 −1.0 (overrides). A recommendation scores the sum of the seeds that
-recommend it; ≤ 0 is never shown.
+Each of your titles (a seed) counts with its strongest signal:
+
+| Signal | Weight | |
+|---|---|---|
+| 👍 liked | +1.5 | rated in Library |
+| watched | +1.0 | played in Jellyfin |
+| requested | +0.8 | requested in Seerr ("get this now") |
+| starred | +0.6 | on your Seerr watchlist ("maybe later") |
+| 👎 disliked | −1.0 | overrides everything else |
+
+A recommendation scores the sum of the weights of the seeds that recommend it;
+≤ 0 is never shown. A starred title is hidden from Discover (find it in
+Library → Watchlist) but stays in a title page's "More like this", marked with
+a star. The ⓘ on a title page ("why this score") shows the sum.
 
 ## Configuration
 
