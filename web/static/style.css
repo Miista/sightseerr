@@ -78,7 +78,8 @@ button { font: inherit; color: inherit; }
    tabs sit above it; app.js (placeSliders) sets its size and position. */
 .tabs, .bottom-bar { isolation: isolate; }
 .tabs { position: relative; }
-.tabs a, .bottom-bar a { z-index: 1; }
+.tabs a, .bottom-bar a, .segments button { z-index: 1; position: relative; }
+.segments .tab-slider { box-shadow: inset 0 1px 0 rgba(255,255,255,.2); }
 .tab-slider { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 999px; pointer-events: none; background: var(--action);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 8px 20px -8px oklch(0.48 0.187 35 / .8);
   transition: transform .38s cubic-bezier(.22,.9,.24,1), width .38s cubic-bezier(.22,.9,.24,1), opacity .2s; }
@@ -188,11 +189,11 @@ a.card:active { transform: scale(.96); }
 .section-head .sub { font-size: 13px; color: var(--muted); }
 /* Section switcher: a segmented control that scrolls to a section and
    follows the scroll position. */
-.segments { display: flex; gap: 4px; padding: 4px; margin-bottom: 22px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); }
+.segments { position: relative; isolation: isolate; display: flex; gap: 4px; padding: 4px; margin-bottom: 22px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); }
 @media (min-width: 821px) { .segments { max-width: 460px; } }
 .segments button { flex: 1; height: 38px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--muted);
   font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; }
-.segments button.on { background: var(--accent-strong); color: #fff; }
+.segments button.on { color: #fff; }  /* the coral pill behind it is a .tab-slider that slides */
 .poster-link { display: block; color: inherit; border-radius: 18px; transition: transform .28s var(--ease); }
 .poster-link:active { transform: scale(.96); }
 

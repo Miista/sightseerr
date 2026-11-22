@@ -120,25 +120,27 @@ function setTab(name) {
 let slidersPlaced = false;
 function placeSliders(animate) {
   for (const nav of document.querySelectorAll('.tabs, .bottom-bar')) {
-    let slider = nav.querySelector('.tab-slider');
-    if (!slider) {
-      slider = h('span', { class: 'tab-slider', 'aria-hidden': 'true' });
-      nav.prepend(slider);
-    }
     const on = nav.querySelector('a.on');
-    if (!on || !nav.offsetParent && getComputedStyle(nav).position !== 'fixed') {
-      slider.style.opacity = on ? slider.style.opacity : '0';
-      continue;
-    }
-    const target = nav.classList.contains('bottom-bar') ? on.querySelector('.tab-icon') : on;
-    const box = nav.getBoundingClientRect(), r = target.getBoundingClientRect();
-    if (!r.width) continue; // the bar is hidden at this width
-    slider.classList.toggle('instant', !animate || slider.style.opacity === '0');
-    slider.style.width = `${r.width}px`;
-    slider.style.height = `${r.height}px`;
-    slider.style.transform = `translate(${r.left - box.left}px, ${r.top - box.top}px)`;
-    slider.style.opacity = '1';
+    slideTo(nav, on && (nav.classList.contains('bottom-bar') ? on.querySelector('.tab-icon') : on), animate);
   }
+}
+
+// slideTo moves the coral pill inside container to sit behind target (made
+// on first use); no target fades it out. Also used by Library's switcher.
+function slideTo(container, target, animate) {
+  let slider = container.querySelector(':scope > .tab-slider');
+  if (!slider) {
+    slider = h('span', { class: 'tab-slider', 'aria-hidden': 'true' });
+    container.prepend(slider);
+  }
+  if (!target) { slider.style.opacity = '0'; return; }
+  const box = container.getBoundingClientRect(), r = target.getBoundingClientRect();
+  if (!r.width) return; // hidden at this width
+  slider.classList.toggle('instant', !animate || slider.style.opacity !== '1');
+  slider.style.width = `${r.width}px`;
+  slider.style.height = `${r.height}px`;
+  slider.style.transform = `translate(${r.left - box.left - container.clientLeft}px, ${r.top - box.top - container.clientTop}px)`;
+  slider.style.opacity = '1';
 }
 window.addEventListener('resize', () => placeSliders(false));
 document.fonts?.ready.then(() => placeSliders(false)); // label widths change once the font is in
@@ -808,18 +810,25 @@ async function renderLibrary(seq) {
   const buttons = groups.map(([label], i) => h('button', { type: 'button', text: label,
     onclick: () => sections[i].scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
   const segments = h('div', { class: 'segments', role: 'tablist' }, ...buttons);
-  const follow = () => {
-    if (!segments.isConnected) return window.removeEventListener('scroll', follow);
+  // The coral pill behind the active segment slides along with it.
+  let current = -1;
+  const follow = (animate = true) => {
+    if (!segments.isConnected) { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', snap); return; }
     const line = scrollY + topbar.offsetHeight + 80;
     const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 4;
     let on = 0;
     sections.forEach((s, i) => { if (s.offsetTop <= line) on = i; });
     if (atEnd) on = sections.length - 1;
+    if (on === current && animate) return;
+    current = on;
     buttons.forEach((b, i) => { b.classList.toggle('on', i === on); b.setAttribute('aria-selected', String(i === on)); });
+    slideTo(segments, buttons[on], animate);
   };
-  window.addEventListener('scroll', follow, { passive: true });
+  const snap = () => follow(false), onScroll = () => follow(true);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', snap);
   view.replaceChildren(...header('Library', lede), segments, ...sections);
-  follow();
+  follow(false);
 }
 
 // thumb is a thumbs-up or -down line icon (Lucide, ISC licence).
