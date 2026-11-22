@@ -128,6 +128,19 @@ func seerr(w http.ResponseWriter, r *http.Request) {
 		}
 		mu.Unlock()
 		send(w, map[string]any{"pageInfo": map[string]int{"page": 1, "pages": 1}, "results": res})
+	case p == "discover/watchlist":
+		user := r.Header.Get("X-API-User") + "/"
+		var res []map[string]any
+		mu.Lock()
+		for k, on := range watchlist {
+			if on && strings.HasPrefix(k, user) {
+				typ, id, _ := strings.Cut(strings.TrimPrefix(k, user), ":")
+				n, _ := strconv.Atoi(id)
+				res = append(res, map[string]any{"tmdbId": n, "mediaType": typ, "title": k})
+			}
+		}
+		mu.Unlock()
+		send(w, map[string]any{"page": 1, "totalPages": 1, "totalResults": len(res), "results": res})
 	case p == "watchlist" && r.Method == http.MethodPost:
 		var body struct {
 			TmdbID    int    `json:"tmdbId"`

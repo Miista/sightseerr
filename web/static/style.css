@@ -158,6 +158,12 @@ a.card:active { transform: scale(.96); }
   background: rgba(9,11,16,.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14);
   font: 500 10px/1 var(--mono); letter-spacing: .12em; color: #e8e4ef; }
 .removed-tag svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+/* Watchlist cards: a Remove button with Seerr's (filled) amber star. */
+.rate .wl-remove { flex: 1; height: 42px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 14px; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--text-2); background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.rate .wl-remove svg { width: 18px; height: 18px; fill: #fcd34d; stroke: #fcd34d; stroke-width: 1.5; stroke-linejoin: round; }
+.rate .wl-remove:disabled { opacity: .5; }
+@media (hover: hover) { .wl-remove:hover { color: var(--text); } }
 .rate { display: flex; gap: 6px; margin-top: auto; }
 .card > .btn { margin-top: auto !important; } /* Unblock, same idea */
 /* Rating: line icons, grey when off; on, tinted green (up) or red (down). */
@@ -190,9 +196,10 @@ a.card:active { transform: scale(.96); }
 /* Section switcher: a segmented control that scrolls to a section and
    follows the scroll position. */
 .segments { position: relative; isolation: isolate; display: flex; gap: 4px; padding: 4px; margin-bottom: 22px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); }
-@media (min-width: 821px) { .segments { max-width: 460px; } }
+@media (min-width: 821px) { .segments { max-width: 560px; } }
 .segments button { flex: 1; height: 38px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--muted);
-  font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; }
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; min-width: 0; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 820px) { .segments { gap: 2px; } .segments button { flex: 1 1 auto; font-size: clamp(11px, 3.25vw, 14px); padding: 0 6px; } } /* widths follow the labels and the text scales with the screen, so all four fit */
 .segments button.on { color: #fff; }  /* the coral pill behind it is a .tab-slider that slides */
 .poster-link { display: block; color: inherit; border-radius: 18px; transition: transform .28s var(--ease); }
 .poster-link:active { transform: scale(.96); }

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -77,6 +79,19 @@ func (f *fakeSeerr) OnWatchlist(_ context.Context, asUser int, k Key) (bool, err
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.listed[listKey{asUser, k}], nil
+}
+
+func (f *fakeSeerr) Watchlist(_ context.Context, asUser int) ([]Key, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var keys []Key
+	for lk, on := range f.listed {
+		if on && lk.user == asUser {
+			keys = append(keys, lk.key)
+		}
+	}
+	slices.SortFunc(keys, func(a, b Key) int { return cmp.Compare(a.ID, b.ID) })
+	return keys, nil
 }
 
 func (f *fakeSeerr) SetWatchlist(_ context.Context, asUser int, k Key, _ string, on bool) error {
@@ -487,6 +502,27 @@ func TestWatchlistIsThePersonsOwn(t *testing.T) {
 	h.do(t, "POST", "/api/watchlist", `{"type":"movie","id":7,"on":true}`)
 	if h.seerr.listed[listKey{1, Key{Movie, 7}}] {
 		t.Error("dry run put it on Alice's watchlist")
+	}
+}
+
+func TestLibraryWatchlistSection(t *testing.T) {
+	h := newHarness(t)
+	as(t, "alice@example.com")
+	h.seerr.details[Key{Movie, 5}] = Details{Title: Title{Type: Movie, ID: 5, Title: "Greenland 2", Poster: "/g.jpg"}}
+	h.seerr.SetWatchlist(context.Background(), 1, Key{Movie, 5}, "", true)
+	h.seerr.SetWatchlist(context.Background(), 3, Key{Movie, 6}, "", true) // Bob's
+	_, out := h.do(t, "GET", "/api/library", "")
+	wl := out["watchlist"].([]any)
+	if len(wl) != 1 || wl[0].(map[string]any)["title"] != "Greenland 2" || wl[0].(map[string]any)["poster"] != "/g.jpg" {
+		t.Fatalf("watchlist = %v, want only Alice's Greenland 2 with its poster", wl)
+	}
+	// Starred titles stay on the wall: starring doesn't hide them.
+	seed := Key{Movie, 1}
+	h.store.AddWatched(1, []Watched{{Key: seed, Title: "Fall", At: t0}})
+	h.seerr.recs[seed] = []Title{mv(5, "Greenland 2")}
+	_, wall := h.do(t, "GET", "/api/wall", "")
+	if cards := wall["cards"].([]any); len(cards) != 1 || cards[0].(map[string]any)["title"] != "Greenland 2" {
+		t.Errorf("wall = %v, want the starred title still on it", cards)
 	}
 }
 

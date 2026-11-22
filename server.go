@@ -29,6 +29,7 @@ type seerrAPI interface {
 	Ratings(ctx context.Context, k Key) (Ratings, error)
 	OnWatchlist(ctx context.Context, asUser int, k Key) (bool, error)
 	SetWatchlist(ctx context.Context, asUser int, k Key, title string, on bool) error
+	Watchlist(ctx context.Context, asUser int) ([]Key, error)
 	RequestOptions(ctx context.Context, mt MediaType) (RequestOptions, error)
 	CollectionParts(ctx context.Context, id int) ([]Title, error)
 }
@@ -649,7 +650,13 @@ func (s *Server) library(w http.ResponseWriter, r *http.Request) {
 	for i, sd := range gone {
 		goneKeys[i] = sd.Key
 	}
-	details := s.detailsFor(r.Context(), append(slices.Clone(keys), goneKeys...))
+	// The person's Seerr watchlist (asked as them). If Seerr can't say, the
+	// section is just left out.
+	listed, err := s.seerr.Watchlist(r.Context(), su.ID)
+	if err != nil {
+		s.log.Warn().Msg(fmt.Sprintf("could not read %s's watchlist: %v", nameOf(su), err))
+	}
+	details := s.detailsFor(r.Context(), append(append(slices.Clone(keys), goneKeys...), listed...))
 
 	out := make([]libraryCard, 0, len(keys))
 	for _, k := range keys {
@@ -678,7 +685,18 @@ func (s *Server) library(w http.ResponseWriter, r *http.Request) {
 		}
 		earlier = append(earlier, libraryCard{Title: t, Watched: true, Rating: ratings[sd.Key]})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": out, "earlier": earlier, "missing": len(keys) - len(out)})
+	watchlist := make([]libraryCard, 0, len(listed))
+	for _, k := range listed {
+		t := Title{Type: k.Type, ID: k.ID}
+		if d, ok := details[k]; ok {
+			t = d.Title
+		}
+		if s.ready() {
+			t.Status = s.statuses.get(k)
+		}
+		watchlist = append(watchlist, libraryCard{Title: t, Watched: watched[k], Rating: ratings[k]})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": out, "earlier": earlier, "watchlist": watchlist, "missing": len(keys) - len(out)})
 }
 
 // detailsFor looks the titles up in Seerr, a few at a time; titles Seerr

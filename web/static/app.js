@@ -829,6 +829,9 @@ async function renderLibrary(seq) {
     // still worth rating, since it shapes Discover.
     ['Removed', 'Watched, then deleted from the library. Ratings still count.',
       (data.earlier || []).map((it) => ({ ...it, removed: true }))],
+    // Your Seerr watchlist: where starred titles can always be found again.
+    ['Watchlist', 'Starred to watch later, on your Seerr watchlist.',
+      (data.watchlist || []).map((it) => ({ ...it, listed: true }))],
   ].filter(([, , items]) => items.length);
   const sections = groups.map(([label, sub, items]) => h('section', { class: 'lib-section' },
     h('div', { class: 'section-head' },
@@ -861,6 +864,43 @@ async function renderLibrary(seq) {
   follow(false);
 }
 
+// watchlistCard: a starred title in Library. The poster opens it; Remove
+// takes it off your Seerr watchlist (with Undo) and drops the card.
+function watchlistCard(it) {
+  const remove = h('button', { class: 'wl-remove', type: 'button', 'aria-label': `Remove ${it.title} from your watchlist` }, svg(STAR), 'Remove');
+  const card = h('div', { class: 'card listed' },
+    h('a', { class: 'poster-link', href: titlePath(it, { root: 'library' }), 'aria-label': it.title }, posterEl(it)),
+    cardText(it.title || `${it.type} ${it.id}`, h('div', { class: 'meta', text: it.year || '' })),
+    h('div', { class: 'rate' }, remove));
+  const count = (delta) => {
+    const c = card.closest('.lib-section')?.querySelector('.count');
+    if (c) c.textContent = String(Number(c.textContent) + delta);
+  };
+  remove.addEventListener('click', async () => {
+    remove.disabled = true;
+    const parent = card.parentNode, next = card.nextSibling;
+    try {
+      await api('POST', '/api/watchlist', { type: it.type, id: it.id, on: false });
+    } catch (err) {
+      remove.disabled = false;
+      return toast(err.message, { error: true });
+    }
+    count(-1);
+    card.remove();
+    toast(`${it.title} removed from your watchlist`, {
+      undo: async () => {
+        try {
+          await api('POST', '/api/watchlist', { type: it.type, id: it.id, on: true });
+          remove.disabled = false;
+          parent?.insertBefore(card, next);
+          count(+1);
+        } catch (err) { toast(err.message, { error: true }); }
+      },
+    });
+  });
+  return card;
+}
+
 // thumb is a thumbs-up or -down line icon (Lucide, ISC licence).
 function thumb(dir) {
   const paths = dir === 'up'
@@ -870,6 +910,7 @@ function thumb(dir) {
 }
 
 function libraryCard(it) {
+  if (it.listed) return watchlistCard(it);
   const poster = posterEl(it);
   const variant = it.removed ? ' removed' : it.watched ? '' : ' unwatched';
   // The poster opens the title; the path starts here, in Library.

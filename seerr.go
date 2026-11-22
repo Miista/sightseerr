@@ -618,6 +618,36 @@ func (c *seerrClient) OnWatchlist(ctx context.Context, asUser int, k Key) (bool,
 	return out.OnUserWatchlist, nil
 }
 
+// Watchlist is the Seerr user's own watchlist, newest first, as Seerr keeps
+// it for non-Plex users (GET /discover/watchlist, asked as them).
+func (c *seerrClient) Watchlist(ctx context.Context, asUser int) ([]Key, error) {
+	if asUser <= 0 {
+		return nil, fmt.Errorf("%w: no Seerr user to ask for", errSeerr)
+	}
+	var keys []Key
+	for page := 1; page <= 50; page++ {
+		var out struct {
+			TotalPages int `json:"totalPages"`
+			Results    []struct {
+				TmdbID    int    `json:"tmdbId"`
+				MediaType string `json:"mediaType"`
+			} `json:"results"`
+		}
+		if err := c.do(ctx, http.MethodGet, fmt.Sprintf("/discover/watchlist?page=%d", page), asUser, nil, &out); err != nil {
+			return nil, err
+		}
+		for _, r := range out.Results {
+			if mt, ok := parseMediaType(r.MediaType); ok && r.TmdbID > 0 {
+				keys = append(keys, Key{mt, r.TmdbID})
+			}
+		}
+		if page >= out.TotalPages || len(out.Results) == 0 {
+			break
+		}
+	}
+	return keys, nil
+}
+
 // SetWatchlist puts the title on the Seerr user's watchlist, or takes it off.
 func (c *seerrClient) SetWatchlist(ctx context.Context, asUser int, k Key, title string, on bool) error {
 	if asUser <= 0 {
