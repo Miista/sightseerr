@@ -657,7 +657,7 @@ async function renderTitle(seq, type, id, q) {
 
   // "this" becomes the title once the bar sticks under the header (setHeadTitle).
   const more = h('section', { class: 'more' }, h('div', { class: 'section-head' }, h('div', { class: 'title-row' },
-    h('h2', {}, 'More like ', h('span', { class: 'more-what', text: 'this' })))));
+    h('h2', {}, 'More like', h('span', { class: 'more-what', text: 'this' })))));
   if (!d.recommendations.length) {
     more.append(h('p', { class: 'lede more-empty', text: 'No new recommendations for this one: everything is in the library, watched or blocked.' }));
   } else {
@@ -733,22 +733,33 @@ function dockRequest(btn, star) {
 
 // Once the page's title has scrolled under the header, the header shows it
 // next to the wordmark. Once "More like this" sticks under the header, the
-// title glides down into it ("More like Oblivion") and the header is the
-// wordmark alone; scrolled back, it glides home. Three states: none (the h1
-// is on screen), head, more.
+// title moves into it ("More like Oblivion") and the header is the wordmark
+// alone; scrolled back, it moves home. Three states: none (the h1 is on
+// screen), head, more.
+//
+// The title changes places as iOS swaps a navigation title: the old one
+// swoops up and out, the new one rises in from just below as the first
+// finishes. Two short animations on the real text; nothing is measured.
 const headTitle = $('headTitle');
 let headWatch = null;
 let headMode = 'none';
-let flight = null;
+const SWOOP_OUT = [{}, { opacity: 0, transform: 'translateY(-8px)', filter: 'blur(3px)' }];
+const SWOOP_IN = [{ opacity: 0, transform: 'translateY(8px)', filter: 'blur(3px)' }, {}];
+const swoopOut = (el) => swoop(el, SWOOP_OUT, { duration: 140, easing: 'ease-in', fill: 'forwards' });
+const swoopIn = (el, delay = 0) => swoop(el, SWOOP_IN, { duration: 200, delay, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
+function swoop(el, frames, opts) {
+  return matchMedia('(prefers-reduced-motion: reduce)').matches ? null : el.animate(frames, opts);
+}
+const still = (...els) => els.forEach((el) => el?.getAnimations().forEach((a) => a.cancel()));
 function setHeadTitle(text, h1, moreHead) {
   window.removeEventListener('scroll', headWatch);
-  flight?.finish();
+  const txt = headTitle.querySelector('.txt');
+  still(txt);
   headTitle.classList.remove('show');
   document.body.classList.remove('glass-joined');
   headWatch = null;
   headMode = 'none';
   if (!text) return;
-  const txt = headTitle.querySelector('.txt');
   txt.textContent = text;
   const what = moreHead?.querySelector('.more-what');
   headWatch = () => {
@@ -759,46 +770,26 @@ function setHeadTitle(text, h1, moreHead) {
     if (mode === headMode) return;
     const was = headMode;
     headMode = mode;
-    flight?.finish();
-    // Where the title is now, measured before anything moves.
-    const from = was === 'head' ? txt : was === 'more' ? what : null;
-    const fromBox = from?.getBoundingClientRect(), fromSize = from && parseFloat(getComputedStyle(from).fontSize);
+    still(txt, what);
     headTitle.classList.toggle('show', mode === 'head');
     // Stuck under the header, the bar and the header share one pane of glass (style.css).
     document.body.classList.toggle('glass-joined', mode === 'more');
-    if (what) what.textContent = mode === 'more' ? text : 'this';
-    if (was === 'head' && mode === 'more') glide(fromBox, fromSize, what, text, txt); // the header's copy goes at once, not fading
-    else if (was === 'more' && mode === 'head') glide(fromBox, fromSize, txt, text);
+    if (was === 'head' && mode === 'more') {
+      swoopOut(txt);
+      if (what) { what.textContent = text; swoopIn(what, 110); }
+    } else if (was === 'more' && mode === 'head') {
+      // The bar's word leaves as the title, then quietly reads "this" again.
+      const out = swoopOut(what);
+      const reset = () => { still(what); what.textContent = 'this'; };
+      if (out) out.finished.then(reset, () => {}); else reset();
+      swoopIn(txt, 110);
+    } else {
+      if (mode === 'head') swoopIn(txt);
+      if (what) what.textContent = mode === 'more' ? text : 'this';
+    }
   };
   window.addEventListener('scroll', headWatch, { passive: true });
   headWatch();
-}
-
-// glide flies a copy of the title from where it was (box, font size) to the
-// element that now holds it, which stays hidden until it lands, as does
-// `leave`, the old place, if given. The copy has the destination's own type,
-// started scaled to the old size, so it ends exactly on the real text and
-// nothing jumps.
-function glide(fromBox, fromSize, to, text, leave) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  to.style.visibility = 'hidden';
-  if (leave) leave.style.visibility = 'hidden';
-  const box = to.getBoundingClientRect(), cs = getComputedStyle(to);
-  const room = to.closest('h2, .head-title')?.getBoundingClientRect().right ?? innerWidth;
-  const fly = h('span', { class: 'glide', 'aria-hidden': 'true', text });
-  Object.assign(fly.style, {
-    left: `${box.left}px`, top: `${box.top}px`, maxWidth: `${Math.max(0, room - box.left)}px`,
-    font: cs.font, letterSpacing: cs.letterSpacing, lineHeight: `${box.height}px`,
-  });
-  document.body.append(fly);
-  const scale = fromSize / parseFloat(cs.fontSize);
-  flight = fly.animate([
-    { transform: `translate(${fromBox.left - box.left}px, ${fromBox.top - box.top}px) scale(${scale})` },
-    { transform: 'none' },
-  ], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
-  flight.finished.catch(() => {}).finally(() => {
-    fly.remove(); to.style.visibility = ''; if (leave) leave.style.visibility = ''; flight = null;
-  });
 }
 
 // watchlistButton puts the title on your Seerr watchlist, or takes it off:

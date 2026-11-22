@@ -210,16 +210,17 @@ a.card:active { transform: scale(.96); }
 .poster-link { display: block; color: inherit; border-radius: 18px; transition: transform .28s var(--ease); }
 .poster-link:active { transform: scale(.96); }
 
-/* Header: on a title page, its title fades in by the wordmark once scrolled past. */
-.head-title { display: flex; align-items: center; gap: 10px; min-width: 0; margin-left: -30px; opacity: 0; transform: translateY(6px);
-  transition: opacity .22s ease, transform .22s var(--ease); pointer-events: none; }
-.head-title.show { opacity: 1; transform: none; }
+/* Header: on a title page, its title fades in by the wordmark once scrolled past.
+   The movement is the title's own (app.js swoops it), so the row only fades. */
+.head-title { display: flex; align-items: center; gap: 10px; min-width: 0; margin-left: -30px; opacity: 0;
+  transition: opacity .22s ease; pointer-events: none; }
+.head-title.show { opacity: 1; }
 .head-title .bar { width: 1px; height: 18px; background: rgba(255,255,255,.2); flex: none; }
-/* The title in flight between the header and the stuck "More like …" bar (app.js glide). */
-.glide { position: fixed; z-index: 11; margin: 0; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transform-origin: 0 0; pointer-events: none; will-change: transform; }
-/* "More like <a long title>" ends in an ellipsis rather than leaving the bar. */
-.more .title-row h2 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* "More like" and the word after it are two flex items, so the word can swoop
+   on its own (an inline span can't be transformed) and a long title still
+   ends in an ellipsis. */
+.more .title-row h2 { display: flex; min-width: 0; white-space: nowrap; }
+.more .more-what { min-width: 0; margin-left: .26em; overflow: hidden; text-overflow: ellipsis; }
 /* Stuck under the header, "More like …" and the header are one pane of glass:
    two panels blur what's behind them separately and never quite meet, so the
    bar's own glass reaches up behind the header (::before, from the top of the
