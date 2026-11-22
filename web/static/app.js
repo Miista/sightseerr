@@ -90,6 +90,11 @@ document.addEventListener('click', (e) => {
   // The Discover tab, from outside Discover: back to where you were there.
   // From inside Discover it goes to the wall, like tapping an iOS tab twice.
   if (a.dataset.tab === 'wall' && !inDiscover(location.pathname)) return go(lastDiscover, { restore: true });
+  // A tab tapped on its own root page doesn't reload; scrolled down, it goes back to the top.
+  if (a.dataset.tab && url.pathname + url.search === here()) {
+    if (scrollY > 0) window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    return;
+  }
   // A title page's Back out to Discover or Library lands where you were there.
   go(url.pathname + url.search, { restore: a.dataset.restore === '1' });
 });

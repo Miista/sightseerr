@@ -480,4 +480,10 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 @media (max-width: 820px) {
   main { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
   .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
+  /* The Library switcher floats just above the tab bar, in the thumb zone. */
+  .segments { position: fixed; z-index: 19; left: var(--gutter); right: var(--gutter); bottom: calc(64px + 10px + env(safe-area-inset-bottom)); margin: 0;
+    background: rgba(20,23,30,.88); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); border-color: rgba(255,255,255,.1);
+    box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+  main:has(.segments) { padding-bottom: calc(170px + env(safe-area-inset-bottom)); }
+  body:has(.segments) .toast { bottom: calc(136px + env(safe-area-inset-bottom)); }
 }
