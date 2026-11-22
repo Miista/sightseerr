@@ -218,18 +218,6 @@ a.card:active { transform: scale(.96); }
    ellipsis while "More like" stays whole. */
 .more .title-row h2 { display: flex; min-width: 0; white-space: nowrap; }
 .more .more-what { min-width: 0; margin-left: .26em; overflow: hidden; text-overflow: ellipsis; }
-/* A section header stuck under the header (.joined, set by app.js joinGlass)
-   and the header are one pane of glass: two panels blur what's behind them
-   separately and never quite meet, so the section header's own glass reaches
-   up behind the header (::before, from the top of the screen; it is tucked
-   1px under) and the header goes clear, without its line. The only edge left
-   is the section header's bottom border. */
-.section-head::before { content: ''; display: none; position: absolute; z-index: -1; left: 0; right: 0; top: calc(1px - var(--topbar, 60px)); bottom: 0;
-  background: var(--glass); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); }
-body.glass-joined .section-head.joined::before { display: block; }
-body.glass-joined .section-head.joined,
-body.glass-joined .top { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
-body.glass-joined .top { border-bottom-color: transparent; }
 .head-title .txt { font-size: 16px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Buttons: coral for the action, neutral once done, outlined otherwise. */

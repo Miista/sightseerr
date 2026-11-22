@@ -113,23 +113,6 @@ const setTopbar = () => document.documentElement.style.setProperty('--topbar', `
 new ResizeObserver(setTopbar).observe(topbar);
 setTopbar();
 
-// A sticky section header sitting in its place under the title bar shares the
-// bar's pane of glass (style.css): two panes blur separately and never quite
-// meet. Only while it sits exactly there: while the next header pushes it up,
-// none is joined, so the bar keeps its own glass and hides the outgoing one.
-function joinGlass() {
-  const slot = topbar.offsetHeight - 1; // headers are tucked 1px under the bar
-  let joined = null;
-  for (const el of document.querySelectorAll('.section-head')) {
-    const here = !joined && Math.abs(el.getBoundingClientRect().top - slot) < 0.75;
-    if (here) joined = el;
-    el.classList.toggle('joined', here);
-  }
-  document.body.classList.toggle('glass-joined', !!joined);
-}
-window.addEventListener('scroll', joinGlass, { passive: true });
-window.addEventListener('resize', joinGlass);
-
 function setTab(name) {
   for (const a of document.querySelectorAll('a[data-tab]')) a.classList.toggle('on', a.dataset.tab === name);
   placeSliders(slidersPlaced);
@@ -172,7 +155,6 @@ async function render() {
   for (const dlg of document.querySelectorAll('dialog[open]')) dlg.close();
   document.title = 'sightseerr';
   setHeadTitle(null);
-  document.body.classList.remove('glass-joined'); // the new page's headers join on the next scroll
   undock();
   if (!isTitle(location.pathname)) closePanel(); // the path panel belongs to title pages
   const path = location.pathname;
@@ -750,9 +732,8 @@ function dockRequest(btn, star) {
 
 // Once the page's title has scrolled under the header, the header shows it
 // next to the wordmark. Once "More like <title>" sticks under the header, the
-// header's title fades away again (the bar already names it; the two share a
-// pane of glass, see joinGlass). Three states: none (the h1 is on screen),
-// head, more.
+// header's title fades away again: the bar already names it. Three states:
+// none (the h1 is on screen), head, more.
 const headTitle = $('headTitle');
 let headWatch = null;
 function setHeadTitle(text, h1, moreHead) {
