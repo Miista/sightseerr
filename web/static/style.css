@@ -210,15 +210,14 @@ a.card:active { transform: scale(.96); }
 .poster-link { display: block; color: inherit; border-radius: 18px; transition: transform .28s var(--ease); }
 .poster-link:active { transform: scale(.96); }
 
-/* Header: on a title page, its title fades in by the wordmark once scrolled past.
-   The movement is the title's own (app.js swoops it), so the row only fades. */
+/* Header: on a title page, its title fades in by the wordmark once scrolled past,
+   and out again once "More like <title>" sticks below it. */
 .head-title { display: flex; align-items: center; gap: 10px; min-width: 0; margin-left: -30px; opacity: 0;
   transition: opacity .22s ease; pointer-events: none; }
 .head-title.show { opacity: 1; }
 .head-title .bar { width: 1px; height: 18px; background: rgba(255,255,255,.2); flex: none; }
-/* "More like" and the word after it are two flex items, so the word can swoop
-   on its own (an inline span can't be transformed) and a long title still
-   ends in an ellipsis. */
+/* "More like" and the title are two flex items, so a long title ends in an
+   ellipsis while "More like" stays whole. */
 .more .title-row h2 { display: flex; min-width: 0; white-space: nowrap; }
 .more .more-what { min-width: 0; margin-left: .26em; overflow: hidden; text-overflow: ellipsis; }
 /* Stuck under the header, "More like …" and the header are one pane of glass:

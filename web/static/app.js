@@ -655,9 +655,8 @@ async function renderTitle(seq, type, id, q) {
     ];
   }
 
-  // "this" becomes the title once the bar sticks under the header (setHeadTitle).
   const more = h('section', { class: 'more' }, h('div', { class: 'section-head' }, h('div', { class: 'title-row' },
-    h('h2', {}, 'More like', h('span', { class: 'more-what', text: 'this' })))));
+    h('h2', {}, 'More like', h('span', { class: 'more-what', text: t.title })))));
   if (!d.recommendations.length) {
     more.append(h('p', { class: 'lede more-empty', text: 'No new recommendations for this one: everything is in the library, watched or blocked.' }));
   } else {
@@ -732,61 +731,24 @@ function dockRequest(btn, star) {
 }
 
 // Once the page's title has scrolled under the header, the header shows it
-// next to the wordmark. Once "More like this" sticks under the header, the
-// title moves into it ("More like Oblivion") and the header is the wordmark
-// alone; scrolled back, it moves home. Three states: none (the h1 is on
-// screen), head, more.
-//
-// The title changes places as iOS swaps a navigation title: the old one
-// swoops up and out, the new one rises in from just below as the first
-// finishes. Two short animations on the real text; nothing is measured.
+// next to the wordmark. Once "More like <title>" sticks under the header, the
+// header's title fades away again (the bar already names it) and the two share
+// one pane of glass. Three states: none (the h1 is on screen), head, more.
 const headTitle = $('headTitle');
 let headWatch = null;
-let headMode = 'none';
-const SWOOP_OUT = [{}, { opacity: 0, transform: 'translateY(-8px)', filter: 'blur(3px)' }];
-const SWOOP_IN = [{ opacity: 0, transform: 'translateY(8px)', filter: 'blur(3px)' }, {}];
-const swoopOut = (el) => swoop(el, SWOOP_OUT, { duration: 140, easing: 'ease-in', fill: 'forwards' });
-const swoopIn = (el, delay = 0) => swoop(el, SWOOP_IN, { duration: 200, delay, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
-function swoop(el, frames, opts) {
-  return matchMedia('(prefers-reduced-motion: reduce)').matches ? null : el.animate(frames, opts);
-}
-const still = (...els) => els.forEach((el) => el?.getAnimations().forEach((a) => a.cancel()));
 function setHeadTitle(text, h1, moreHead) {
   window.removeEventListener('scroll', headWatch);
-  const txt = headTitle.querySelector('.txt');
-  still(txt);
   headTitle.classList.remove('show');
   document.body.classList.remove('glass-joined');
   headWatch = null;
-  headMode = 'none';
   if (!text) return;
-  txt.textContent = text;
-  const what = moreHead?.querySelector('.more-what');
+  headTitle.querySelector('.txt').textContent = text;
   headWatch = () => {
     if (!h1.isConnected) { window.removeEventListener('scroll', headWatch); return; }
     const bar = topbar.offsetHeight;
-    const mode = what && moreHead.getBoundingClientRect().top <= bar ? 'more'
-      : h1.getBoundingClientRect().bottom < bar ? 'head' : 'none';
-    if (mode === headMode) return;
-    const was = headMode;
-    headMode = mode;
-    still(txt, what);
-    headTitle.classList.toggle('show', mode === 'head');
-    // Stuck under the header, the bar and the header share one pane of glass (style.css).
-    document.body.classList.toggle('glass-joined', mode === 'more');
-    if (was === 'head' && mode === 'more') {
-      swoopOut(txt);
-      if (what) { what.textContent = text; swoopIn(what, 110); }
-    } else if (was === 'more' && mode === 'head') {
-      // The bar's word leaves as the title, then quietly reads "this" again.
-      const out = swoopOut(what);
-      const reset = () => { still(what); what.textContent = 'this'; };
-      if (out) out.finished.then(reset, () => {}); else reset();
-      swoopIn(txt, 110);
-    } else {
-      if (mode === 'head') swoopIn(txt);
-      if (what) what.textContent = mode === 'more' ? text : 'this';
-    }
+    const stuck = moreHead && moreHead.getBoundingClientRect().top <= bar;
+    headTitle.classList.toggle('show', !stuck && h1.getBoundingClientRect().bottom < bar);
+    document.body.classList.toggle('glass-joined', !!stuck); // style.css
   };
   window.addEventListener('scroll', headWatch, { passive: true });
   headWatch();
