@@ -538,7 +538,7 @@ async function renderTitle(seq, type, id, q) {
     : null;
   const seerrLink = d.links?.seerr ? h('a', { class: 'seerr-link', href: d.links.seerr, target: '_blank', rel: 'noopener', text: 'Open in Seerr ↗' }) : null;
 
-  const titleBlock = h('div', { class: 'd-title' }, h('span', { class: `kind ${t.type}`, text: t.type === 'tv' ? 'Series' : 'Movie' }), h('h1', { text: t.title }));
+  const titleBlock = h('div', { class: 'd-title' }, badgeRow(t), h('h1', { text: t.title }));
   const words = [
     t.tagline ? h('p', { class: 'tagline', text: `“${t.tagline}”` }) : null,
     h('p', { class: 'overview', text: t.overview || 'No summary yet.' }),
@@ -566,7 +566,7 @@ async function renderTitle(seq, type, id, q) {
       h('div', { class: 'd-head' },
         h('div', { class: 'd-thumb' }, t.poster ? h('img', { src: IMG + 'w342' + t.poster, alt: '' }) : null),
         h('div', { class: 'd-title' },
-          h('span', { class: `kind ${t.type}`, text: t.type === 'tv' ? 'Series' : 'Movie' }),
+          badgeRow(t),
           h('h1', { text: t.title }),
           h('div', { class: 'd-year', text: [t.year, runtime].filter(Boolean).join(' · ') }),
           (t.genres || []).length ? h('div', { class: 'd-genres', text: t.genres.join(', ') }) : null)),
@@ -645,6 +645,56 @@ function setHeadTitle(text, h1) {
   };
   window.addEventListener('scroll', headWatch, { passive: true });
   headWatch();
+}
+
+// badgeRow is the MOVIE/SERIES badge with a small ⓘ beside it that explains
+// the title's score ("why this score").
+function badgeRow(t) {
+  return h('div', { class: 'badge-row' },
+    h('span', { class: `kind ${t.type}`, text: t.type === 'tv' ? 'Series' : 'Movie' }),
+    h('button', { class: 'info-btn', type: 'button', 'aria-label': 'Why this is recommended', onclick: () => whySheet(t) },
+      svg('<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>')));
+}
+
+const WHY_REASONS = { liked: 'You liked', watched: 'You watched', requested: 'You requested', disliked: 'You disliked' };
+const WHY_HIDDEN = {
+  library: 'It\'s already in the library, so Discover doesn\'t show it.',
+  yours: 'You\'ve watched or requested it, so Discover doesn\'t show it.',
+  blocked: 'You blocked it, so Discover doesn\'t show it.',
+};
+const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+
+// whySheet: which of your titles recommend this one, how each counts, and
+// the score that results, worked out the same way as Discover.
+async function whySheet(t) {
+  const body = h('div', { class: 'dialog-body why-body' }, h('div', { class: 'skel para' }), h('div', { class: 'skel para', style: 'width:70%' }));
+  const dlg = sheet(`Why ${t.title} is recommended`,
+    h('div', { class: 'dialog-head' },
+      h('div', {}, h('div', { class: 'dialog-kicker', text: 'Why this is recommended' }), h('div', { class: 'dialog-title', text: t.title }))),
+    body,
+    h('div', { class: 'dialog-foot' }, h('button', { class: 'btn ghost', type: 'button', text: 'Close', onclick: () => dlg.close() })));
+  let d;
+  try { d = await api('GET', `/api/why/${t.type}/${t.id}`); } catch (err) {
+    body.replaceChildren(h('p', { class: 'why-note', text: err.message }));
+    return;
+  }
+  const fmt = (n) => (n > 0 ? '+' : '') + (Math.round(n * 10) / 10);
+  const kids = [];
+  if (d.by.length) {
+    kids.push(h('div', { class: 'why-score' }, h('span', { class: 'why-num', text: (Math.round(d.score * 10) / 10).toString() }),
+      h('span', { class: 'why-of', text: `from ${d.by.length} of your title${d.by.length === 1 ? '' : 's'}` })));
+    kids.push(h('ol', { class: 'why-list' }, ...d.by.map((c) => h('li', {},
+      h('div', { class: 'why-main' },
+        h('div', { class: 'why-title', text: c.title || '…' }),
+        h('div', { class: 'why-sub', text: `${WHY_REASONS[c.reason] || ''} · ${ordinal(c.position)} of ${c.of} in its recommendations` })),
+      h('span', { class: 'why-weight' + (c.weight < 0 ? ' neg' : ''), text: fmt(c.weight) })))));
+  } else {
+    kids.push(h('p', { class: 'why-note', text: 'None of your titles recommend this one; you got here through the path.' }));
+  }
+  if (d.hidden) kids.push(h('p', { class: 'why-note', text: WHY_HIDDEN[d.hidden] }));
+  if (d.failed) kids.push(h('p', { class: 'why-note', text: `${d.failed} of your titles couldn't be checked right now.` }));
+  kids.push(h('p', { class: 'why-how', text: 'Each of your titles that recommends it adds to its score: liked +1.5, watched +1.0, requested +0.8, disliked −1.0. Discover shows the highest scores first.' }));
+  body.replaceChildren(...kids);
 }
 
 // requestDialog is the advanced request, as in Seerr: a sheet with the

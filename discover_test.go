@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -170,6 +171,49 @@ func TestBuildWallUsesOnlyTheMostRecentSeeds(t *testing.T) {
 		if c.ID <= 1005 { // seeds 1..5 are the oldest and must be left out
 			t.Errorf("card %d comes from one of the oldest seeds", c.ID)
 		}
+	}
+}
+
+func TestExplainMatchesTheWall(t *testing.T) {
+	zodiac, prisoners, dune, bad := Key{Movie, 1}, Key{Movie, 2}, Key{Movie, 3}, Key{Movie, 4}
+	target := Key{Movie, 10}
+	rec := fakeRecs{recs: map[Key][]Title{
+		zodiac:    {mv(9, "Other"), mv(10, "Sicario")}, // 2nd of 2
+		prisoners: {mv(10, "Sicario")},                 // 1st of 1
+		dune:      {mv(10, "Sicario"), mv(11, "X"), mv(12, "Y")},
+		bad:       {mv(10, "Sicario")},
+	}}
+	seeds := []Seed{
+		{Key: zodiac, Title: "Zodiac", Watched: true, At: t0},
+		{Key: prisoners, Title: "Prisoners", Watched: true, At: t0},
+		{Key: dune, Title: "Dune", Requested: true, At: t0},
+		{Key: bad, Title: "Disliked one", Watched: true, At: t0},
+	}
+	ratings := map[Key]int{zodiac: 1, bad: -1}
+	score, by, failed := explain(context.Background(), rec, seeds, ratings, target)
+	if failed != 0 || len(by) != 4 {
+		t.Fatalf("failed=%d by=%+v", failed, by)
+	}
+	// Strongest first: liked 1.5, watched 1.0, requested 0.8, disliked -1.0.
+	want := []string{"Zodiac liked 1.5 2/2", "Prisoners watched 1 1/1", "Dune requested 0.8 1/3", "Disliked one disliked -1 1/1"}
+	for i, c := range by {
+		if got := fmt.Sprintf("%s %s %v %d/%d", c.Title, c.Reason, c.Weight, c.Position, c.Of); got != want[i] {
+			t.Errorf("contribution %d = %q, want %q", i, got, want[i])
+		}
+	}
+	// The same number the wall shows for it.
+	cards, _ := buildWall(context.Background(), rec, seeds, ratings, noExclusions())
+	for _, c := range cards {
+		if c.Key() == target && c.Score != score {
+			t.Errorf("explain says %v, the wall %v", score, c.Score)
+		}
+	}
+	if score != 1.5+1.0+0.8-1.0 {
+		t.Errorf("score %v", score)
+	}
+	// A title nothing recommends scores nothing, with nothing to show.
+	if s, by, _ := explain(context.Background(), rec, seeds, ratings, Key{TV, 10}); s != 0 || len(by) != 0 {
+		t.Errorf("unrecommended title: %v %+v", s, by)
 	}
 }
 

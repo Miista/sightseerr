@@ -93,15 +93,15 @@ const (
 	wallFetchers = 4   // recommendation lookups in flight at once
 )
 
-// buildWall ranks the recommendations of the person's seeds. Positive seeds
-// are the most recent wallMaxSeeds; disliked seeds always count, since they
-// only take away. A seed whose recommendations can't be fetched is skipped
-// (the wall is still worth showing); the error count says how many.
-func buildWall(ctx context.Context, rec recommender, seeds []Seed, ratings map[Key]int, ex Exclusions) ([]Card, int) {
-	type weighted struct {
-		seed   Seed
-		weight float64
-	}
+// weighted is a seed with the weight it counts with.
+type weighted struct {
+	seed   Seed
+	weight float64
+}
+
+// wallSeeds is the seeds the wall is built from: the most recent
+// wallMaxSeeds positive ones, and every disliked one (they only take away).
+func wallSeeds(seeds []Seed, ratings map[Key]int) []weighted {
 	var positive, negative []weighted
 	for _, s := range seeds {
 		switch w := seedWeight(s, ratings[s.Key]); {
@@ -115,8 +115,12 @@ func buildWall(ctx context.Context, rec recommender, seeds []Seed, ratings map[K
 	if len(positive) > wallMaxSeeds {
 		positive = positive[:wallMaxSeeds]
 	}
-	use := append(positive, negative...)
+	return append(positive, negative...)
+}
 
+// fetchRecommendations asks for every seed's recommendations, a few at a
+// time; failed[i] says seed i's couldn't be fetched.
+func fetchRecommendations(ctx context.Context, rec recommender, use []weighted) ([][]Title, []bool) {
 	results := make([][]Title, len(use))
 	failed := make([]bool, len(use))
 	var wg sync.WaitGroup
@@ -132,6 +136,63 @@ func buildWall(ctx context.Context, rec recommender, seeds []Seed, ratings map[K
 		}()
 	}
 	wg.Wait()
+	return results, failed
+}
+
+// Contribution is one of the person's titles recommending a title: how it
+// counts, and where the title sits in its recommendations.
+type Contribution struct {
+	Type     MediaType `json:"type"`
+	ID       int       `json:"id"`
+	Title    string    `json:"title"`
+	Reason   string    `json:"reason"` // "liked", "disliked", "watched" or "requested"
+	Weight   float64   `json:"weight"`
+	Position int       `json:"position"` // 1-based place in that title's list
+	Of       int       `json:"of"`       // length of that list
+}
+
+// explain says why a title scores what it does on the wall: the same seeds
+// and lists buildWall uses, strongest contribution first. failed counts seeds
+// whose recommendations couldn't be fetched.
+func explain(ctx context.Context, rec recommender, seeds []Seed, ratings map[Key]int, target Key) (score float64, out []Contribution, failed int) {
+	use := wallSeeds(seeds, ratings)
+	results, bad := fetchRecommendations(ctx, rec, use)
+	out = []Contribution{}
+	for i, w := range use {
+		if bad[i] {
+			failed++
+			continue
+		}
+		for pos, t := range results[i] {
+			if t.Key() != target {
+				continue
+			}
+			reason := becauseOf(w.seed).Reason
+			switch r := ratings[w.seed.Key]; {
+			case r > 0:
+				reason = "liked"
+			case r < 0:
+				reason = "disliked"
+			}
+			out = append(out, Contribution{Type: w.seed.Key.Type, ID: w.seed.Key.ID, Title: w.seed.Title, Reason: reason,
+				Weight: w.weight, Position: pos + 1, Of: len(results[i])})
+			score += w.weight
+			break
+		}
+	}
+	slices.SortStableFunc(out, func(a, b Contribution) int {
+		return cmp.Or(cmp.Compare(b.Weight, a.Weight), cmp.Compare(a.Position, b.Position))
+	})
+	return score, out, failed
+}
+
+// buildWall ranks the recommendations of the person's seeds. Positive seeds
+// are the most recent wallMaxSeeds; disliked seeds always count, since they
+// only take away. A seed whose recommendations can't be fetched is skipped
+// (the wall is still worth showing); the error count says how many.
+func buildWall(ctx context.Context, rec recommender, seeds []Seed, ratings map[Key]int, ex Exclusions) ([]Card, int) {
+	use := wallSeeds(seeds, ratings)
+	results, failed := fetchRecommendations(ctx, rec, use)
 
 	type acc struct {
 		card     Card

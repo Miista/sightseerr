@@ -61,6 +61,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/me", s.me)
 	mux.HandleFunc("GET /api/wall", s.wall)
 	mux.HandleFunc("GET /api/title/{type}/{id}", s.title)
+	mux.HandleFunc("GET /api/why/{type}/{id}", s.why)
 	mux.HandleFunc("POST /api/request", s.request)
 	mux.HandleFunc("GET /api/request-options/{type}", s.requestOptions)
 	mux.HandleFunc("GET /api/library", s.library)
@@ -366,6 +367,37 @@ func (s *Server) title(w http.ResponseWriter, r *http.Request) {
 }
 
 const maxMoreLikeThis = 8
+
+// why explains a title's score on the wall ("why this score"). hidden says
+// why it isn't offered at all, if it isn't: the wall never shows it then,
+// whatever its score.
+func (s *Server) why(w http.ResponseWriter, r *http.Request) {
+	su, ok := s.who(w, r)
+	if !ok {
+		return
+	}
+	k, ok := pathKey(r)
+	if !ok {
+		writeError(w, http.StatusNotFound, errors.New("no such title"))
+		return
+	}
+	ex, seeds, ratings, err := s.exclusions(su.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	score, by, failed := explain(r.Context(), s.seerr, seeds, ratings, k)
+	hidden := ""
+	switch {
+	case ex.blocked[k]:
+		hidden = "blocked"
+	case ex.own[k]:
+		hidden = "yours" // watched or requested
+	case inLibrary(ex.statuses[k]):
+		hidden = "library"
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"score": score, "by": by, "failed": failed, "hidden": hidden})
+}
 
 // collectionPart is one movie of the page's collection. Unlike everywhere
 // else, parts the person has or has seen are shown too: it's the whole

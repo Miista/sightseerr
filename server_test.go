@@ -429,6 +429,34 @@ func TestTitlePathAheadSeedAndMoreLikeThis(t *testing.T) {
 	}
 }
 
+func TestWhyEndpoint(t *testing.T) {
+	h := newHarness(t)
+	as(t, "alice@example.com")
+	seed := Key{Movie, 1}
+	h.store.AddWatched(1, []Watched{{Key: seed, Title: "Fall", At: t0}})
+	h.seerr.recs[seed] = []Title{mv(5, "Other"), mv(10, "Maze Runner")}
+	_, out := h.do(t, "GET", "/api/why/movie/10", "")
+	by := out["by"].([]any)
+	if out["score"] != 1.0 || len(by) != 1 || out["hidden"] != "" {
+		t.Fatalf("why = %v", out)
+	}
+	if c := by[0].(map[string]any); c["title"] != "Fall" || c["reason"] != "watched" || c["position"] != float64(2) || c["of"] != float64(2) {
+		t.Errorf("contribution %v", c)
+	}
+	// It says why a title isn't on the wall at all.
+	h.store.Block(1, mv(10, "Maze Runner"))
+	if _, out := h.do(t, "GET", "/api/why/movie/10", ""); out["hidden"] != "blocked" {
+		t.Errorf("blocked title: hidden = %v", out["hidden"])
+	}
+	if _, out := h.do(t, "GET", "/api/why/movie/1", ""); out["hidden"] != "yours" {
+		t.Errorf("watched title: hidden = %v", out["hidden"])
+	}
+	as(t, "")
+	if w, _ := h.do(t, "GET", "/api/why/movie/10", ""); w.Code != http.StatusUnauthorized {
+		t.Errorf("signed out: %d", w.Code)
+	}
+}
+
 func TestPartState(t *testing.T) {
 	cases := []struct {
 		status int

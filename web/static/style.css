@@ -213,6 +213,26 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 .ico.path { width: 16px; height: 16px; stroke: oklch(0.75 0.18 262); }
 .ico.chev { width: 14px; height: 14px; color: var(--muted); transition: transform .2s; }
 .d-title .kind { position: static; display: inline-block; align-self: flex-start; }
+/* The badge and the ⓘ beside it; the button is small but its tap area isn't. */
+.badge-row { display: flex; align-items: center; gap: 4px; align-self: flex-start; }
+.info-btn { width: 32px; height: 32px; margin: -6px 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
+.info-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (hover: hover) { .info-btn:hover { color: var(--text); } }
+/* Why this score */
+.why-body { gap: 16px; }
+.why-score { display: flex; align-items: baseline; gap: 10px; }
+.why-num { font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+.why-of { font: 400 13px var(--mono); color: var(--muted); }
+.why-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.why-list li { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.why-main { flex: 1; min-width: 0; }
+.why-title { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.why-sub { margin-top: 3px; font-size: 13px; color: var(--muted); }
+.why-weight { flex: none; font: 500 15px var(--mono); color: var(--green); }
+.why-weight.neg { color: var(--red); }
+.why-note { margin: 0; font-size: 14px; line-height: 1.45; color: var(--text-2); }
+.why-how { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.dialog .why-list { max-height: 42vh; overflow: auto; }
 .d-title h1 { animation: rise .45s var(--ease) both; }
 
 /* Phone: Back and Path in a row, then a compact header (a thumbnail beside
