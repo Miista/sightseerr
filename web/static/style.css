@@ -22,8 +22,10 @@
   --action: linear-gradient(140deg, oklch(0.62 0.196 35), oklch(0.48 0.187 35)); /* coral: Request, logo */
   --red: oklch(0.82 0.15 25);
   --green: oklch(0.86 0.17 150);
-  --glass: rgba(9,11,16,.72);
-  --blur: blur(20px) saturate(1.4);
+  /* Frosted bars. Strong enough that the dark gap between two poster columns
+     scrolling underneath washes out instead of showing through as a line. */
+  --glass: rgba(9,11,16,.8);
+  --blur: blur(32px) saturate(1.5);
   --mono: 'DM Mono', ui-monospace, monospace;
   --ease: cubic-bezier(.2,.8,.2,1);
   --gutter: 20px;
