@@ -117,6 +117,7 @@ async function render() {
   for (const dlg of document.querySelectorAll('dialog[open]')) dlg.close();
   document.title = 'spor';
   setHeadTitle(null);
+  undock();
   if (!isTitle(location.pathname)) closePanel(); // the path panel belongs to title pages
   const path = location.pathname;
   const m = path.match(/^\/(movie|tv)\/(\d+)$/);
@@ -330,10 +331,11 @@ const ICONS = {
 
 function titleSkeleton() {
   return h('div', { class: 'detail', 'aria-busy': 'true' },
-    h('div', { class: 'd-hero skel' }),
+    h('div', { class: 'd-head d-skel' },
+      h('div', { class: 'd-thumb skel' }),
+      h('div', { class: 'd-title' }, h('div', { class: 'skel h1' }), h('div', { class: 'skel para', style: 'width:60%' }))),
     h('div', { class: 'd-info' },
-      h('div', { class: 'skel h1' }), h('div', { class: 'skel para', style: 'width:60%' }),
-      h('div', { class: 'skel para' }), h('div', { class: 'skel para', style: 'width:80%' })));
+      h('div', { class: 'skel para' }), h('div', { class: 'skel para' }), h('div', { class: 'skel para', style: 'width:80%' })));
 }
 
 // Where a collection part stands for you (server: partState).
@@ -358,17 +360,27 @@ function statsBlock(t, s = {}) {
     ['Genre', (t.genres || []).slice(0, 3).join(', ')]];
   const top = h('div', { class: 'stat-row' }, ...facts.map(([label, value], i) =>
     h('div', { class: 'stat' + (i === 2 ? ' wide' : '') }, h('div', { class: 'stat-label', text: label }), h('div', { class: 'stat-value', text: value || '—' }))));
+  const scores = scoreItems(t, s);
+  return h('div', { class: 'stats' }, top, scores.length ? h('div', { class: 'score-row' }, ...scores) : null);
+}
+
+// scoresRow is the scores alone, between thin lines (the phone's layout).
+function scoresRow(t, s = {}) {
+  const scores = scoreItems(t, s);
+  return scores.length ? h('div', { class: 'stats' }, h('div', { class: 'score-row' }, ...scores)) : null;
+}
+
+function scoreItems(t, s = {}) {
   const score = (logo, alt, value, href) => {
     const kids = [h('img', { src: `/vendor/ratings/${logo}.svg`, alt, class: logo === 'imdb' || logo === 'tmdb_logo' ? 'logo-wide' : '' }), h('span', { text: value })];
     return href ? h('a', { class: 'score', href, target: '_blank', rel: 'noopener', title: alt }, ...kids) : h('div', { class: 'score', title: alt }, ...kids);
   };
-  const scores = [
+  return [
     s.rtCritics ? score(s.rtCriticsRotten ? 'rt_rotten' : 'rt_fresh', 'Rotten Tomatoes critics', `${s.rtCritics}%`, s.rtUrl) : null,
     s.rtAudience ? score(s.rtAudienceRotten ? 'rt_aud_rotten' : 'rt_aud_fresh', 'Rotten Tomatoes audience', `${s.rtAudience}%`, s.rtUrl) : null,
     s.imdb ? score('imdb', 'IMDb', s.imdb.toFixed(1), s.imdbUrl) : null,
     t.rating ? score('tmdb_logo', 'TMDB user score', `${Math.round(t.rating * 10)}%`) : null,
   ].filter(Boolean);
-  return h('div', { class: 'stats' }, top, scores.length ? h('div', { class: 'score-row' }, ...scores) : null);
 }
 
 // pathList: the titles of this chain, from the first one opened down to this
@@ -535,9 +547,22 @@ async function renderTitle(seq, type, id, q) {
           h('div', { class: 'd-act' }, actions, partOf), ...words, seerrLink)),
     ];
   } else {
+    // Phone: Back and Path in a row, a compact header (thumbnail beside the
+    // title, year · runtime, genres), the scores, then tagline and summary
+    // early, since that's what sells the recommendation, then Request.
+    const runtime = t.type === 'tv'
+      ? (t.seasons ? `${t.seasons} season${t.seasons === 1 ? '' : 's'}` : '')
+      : (t.runtime ? `${Math.floor(t.runtime / 60) ? Math.floor(t.runtime / 60) + 'h ' : ''}${t.runtime % 60}m` : '');
     top = [
-      h('section', { class: 'd-hero' }, posterImg, backBtn, pathWrap, titleBlock),
-      h('div', { class: 'd-info' }, statsBlock(t, d.scores), actions, h('div', { class: 'd-links' }, partOf, seerrLink), ...words),
+      h('div', { class: 'd-nav' }, backBtn, pathWrap),
+      h('div', { class: 'd-head' },
+        h('div', { class: 'd-thumb' }, t.poster ? h('img', { src: IMG + 'w342' + t.poster, alt: '' }) : null),
+        h('div', { class: 'd-title' },
+          h('span', { class: `kind ${t.type}`, text: t.type === 'tv' ? 'Series' : 'Movie' }),
+          h('h1', { text: t.title }),
+          h('div', { class: 'd-year', text: [t.year, runtime].filter(Boolean).join(' · ') }),
+          (t.genres || []).length ? h('div', { class: 'd-genres', text: t.genres.join(', ') }) : null)),
+      h('div', { class: 'd-info' }, scoresRow(t, d.scores), ...words, actions, h('div', { class: 'd-links' }, partOf, seerrLink)),
     ];
   }
 
@@ -556,7 +581,44 @@ async function renderTitle(seq, type, id, q) {
   // replaceChildren would print a missing section as the text "null".
   view.replaceChildren(...[h('div', { class: 'detail' }, ...top), coll, more].filter(Boolean));
   document.title = `${t.title} · spor`;
-  setHeadTitle(t.title, titleBlock.querySelector('h1'));
+  setHeadTitle(t.title, view.querySelector('.d-title h1'));
+  if (!isWide) dockRequest(actions.querySelector('.btn.req'));
+}
+
+// dockRequest: on a phone, while the Request button's place on the page is
+// still below the screen, a docked copy sits just above the tab bar; once
+// you've scrolled to the button itself, the copy goes. The copy mirrors the
+// button (label, state) and hands taps to it, and hides while a sheet is open.
+let dockWatch = null;
+function undock() {
+  document.querySelector('.req-dock')?.remove();
+  window.removeEventListener('scroll', dockWatch);
+  window.removeEventListener('resize', dockWatch);
+  window.removeEventListener('spor:sheet', dockWatch);
+  dockWatch = null;
+}
+function dockRequest(btn) {
+  undock();
+  if (!btn) return;
+  const copy = h('button', { type: 'button' });
+  const mirror = () => { copy.className = btn.className; copy.textContent = btn.textContent; copy.disabled = btn.disabled; };
+  mirror();
+  new MutationObserver(mirror).observe(btn, { attributes: true, childList: true, characterData: true, subtree: true });
+  copy.addEventListener('click', () => btn.click());
+  const dock = h('div', { class: 'req-dock', hidden: true }, copy);
+  document.body.append(dock);
+  const bar = document.querySelector('.bottom-bar');
+  dockWatch = () => {
+    if (!btn.isConnected) return undock();
+    const limit = (bar ? bar.getBoundingClientRect().top : innerHeight) - 12;
+    const docked = btn.getBoundingClientRect().bottom > limit && !document.querySelector('dialog[open]');
+    dock.hidden = !docked;
+    btn.style.visibility = docked ? 'hidden' : '';
+  };
+  window.addEventListener('scroll', dockWatch, { passive: true });
+  window.addEventListener('resize', dockWatch);
+  window.addEventListener('spor:sheet', dockWatch);
+  dockWatch();
 }
 
 // Once the page's title has scrolled under the header, the header shows it
@@ -618,9 +680,10 @@ function requestDialog(t, o, send) {
 function sheet(label, ...content) {
   const dlg = h('dialog', { class: 'dialog', 'aria-label': label }, h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }), ...content);
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
-  dlg.addEventListener('close', () => dlg.remove());
+  dlg.addEventListener('close', () => { dlg.remove(); window.dispatchEvent(new Event('spor:sheet')); });
   document.body.append(dlg);
   dlg.showModal();
+  window.dispatchEvent(new Event('spor:sheet')); // the docked Request hides while a sheet is open
   return dlg;
 }
 
