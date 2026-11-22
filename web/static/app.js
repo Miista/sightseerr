@@ -379,7 +379,7 @@ function scoreItems(t, s = {}) {
     s.rtCritics ? score(s.rtCriticsRotten ? 'rt_rotten' : 'rt_fresh', 'Rotten Tomatoes critics', `${s.rtCritics}%`, s.rtUrl) : null,
     s.rtAudience ? score(s.rtAudienceRotten ? 'rt_aud_rotten' : 'rt_aud_fresh', 'Rotten Tomatoes audience', `${s.rtAudience}%`, s.rtUrl) : null,
     s.imdb ? score('imdb', 'IMDb', s.imdb.toFixed(1), s.imdbUrl) : null,
-    t.rating ? score('tmdb_logo', 'TMDB user score', `${Math.round(t.rating * 10)}%`) : null,
+    t.rating ? score('tmdb_logo', 'TMDB user score', `${Math.round(t.rating * 10)}%`, `https://www.themoviedb.org/${t.type}/${t.id}`) : null,
   ].filter(Boolean);
 }
 
