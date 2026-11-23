@@ -472,6 +472,11 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 .dialog { padding: 0; border: 0; border-radius: 28px; width: min(460px, calc(100vw - 32px)); color: var(--text); background: var(--surface);
   box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 30px 70px rgba(0,0,0,.7); }
 .dialog:focus { outline: none; } /* it takes focus on opening (app.js sheet); its controls keep their own rings */
+/* The page holds still behind an open sheet (as in duva): no scrolling it under
+   the backdrop, and a scroll that reaches the end of a sheet's own list does
+   not carry on into the page. */
+html:has(dialog[open]) { overflow: hidden; }
+.dialog, .dialog .why-list { overscroll-behavior: contain; }
 .dialog[open] { animation: cardIn .26s var(--ease); }
 .dialog::backdrop { background: rgba(4,4,8,.7); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: fadeIn .2s ease; }
 .sheet-grab { display: none; }
@@ -495,7 +500,9 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 @media (max-width: 820px) {
   .dialog { width: calc(100% - 20px); max-width: none; margin: auto 10px 10px; border-radius: 34px; padding-bottom: env(safe-area-inset-bottom); }
   .dialog[open] { animation: sheetUp .38s cubic-bezier(.2,.9,.25,1.05); }
-  .sheet-grab { display: block; width: 40px; height: 5px; margin: 10px auto 0; border-radius: 3px; background: rgba(255,255,255,.2); }
+  /* The handle: a full-width strip to grab (app.js sheet drags it down), the bar drawn in its middle. */
+  .sheet-grab { display: flex; justify-content: center; align-items: center; height: 28px; touch-action: none; cursor: grab; }
+  .sheet-grab::after { content: ''; width: 48px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.22); }
 }
 
 /* Skeletons: the layout's shape, pulsing, until the data is in. */

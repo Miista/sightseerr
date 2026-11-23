@@ -875,10 +875,32 @@ function requestDialog(t, o, send) {
 // Opening focuses the dialog itself, not its first control: iOS treats a
 // focused <select> as being edited, opening its picker and scrolling the page
 // underneath to bring it into view. Tab still reaches the controls.
+// On a phone it has a handle (as in duva): the sheet follows the finger down
+// and lets go past 90px, sliding away; short of that it springs back.
 function sheet(label, ...content) {
-  const dlg = h('dialog', { class: 'dialog', 'aria-label': label, tabindex: '-1', autofocus: true },
-    h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }), ...content);
+  const grab = h('div', { class: 'sheet-grab', 'aria-hidden': 'true' });
+  const dlg = h('dialog', { class: 'dialog', 'aria-label': label, tabindex: '-1', autofocus: true }, grab, ...content);
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+  let from = null;
+  grab.addEventListener('pointerdown', (e) => {
+    grab.setPointerCapture(e.pointerId);
+    from = e.clientY;
+    dlg.style.transition = 'none';
+  });
+  grab.addEventListener('pointermove', (e) => {
+    if (from === null) return;
+    dlg.style.transform = `translateY(${Math.max(0, e.clientY - from)}px)`;
+  });
+  const letGo = (e) => {
+    if (from === null) return;
+    const far = e.clientY - from > 90;
+    from = null;
+    dlg.style.transition = 'transform .2s ease';
+    dlg.style.transform = far ? 'translateY(110%)' : '';
+    if (far) setTimeout(() => dlg.close(), 200);
+  };
+  grab.addEventListener('pointerup', letGo);
+  grab.addEventListener('pointercancel', letGo);
   dlg.addEventListener('close', () => { dlg.remove(); window.dispatchEvent(new Event('sightseerr:sheet')); });
   document.body.append(dlg);
   dlg.showModal();
