@@ -9,9 +9,13 @@
 
 :root {
   color-scheme: dark;
-  --bg-rgb: 21 25 34;            /* #151922 (also in index.html, twice, and the manifest); the glass and bars are this, translucent */
-  --bg: rgb(var(--bg-rgb));
-  --surface: #232835;
+  /* The theme hangs on --bg: the surface and every translucent bar derive from
+     it. (Also in index.html, twice, and the manifest, which can't read CSS.) */
+  --bg: #151922;
+  /* Cards, placeholders, raised panels: a step lighter. Mixed in oklab, not
+     oklch: white has no hue, and Chromium carries that into an oklch mix
+     (a pink surface); oklab has no hue channel, so the blue of --bg survives. */
+  --surface: color-mix(in oklab, var(--bg), white 8%);
   --text: #eef1f6;
   --text-2: #c9c5d2;
   --muted: #868d9b;
@@ -25,7 +29,7 @@
   --green: oklch(0.86 0.17 150);
   /* Frosted bars. Strong enough that the dark gap between two poster columns
      scrolling underneath washes out instead of showing through as a line. */
-  --glass: rgb(var(--bg-rgb) / .8);
+  --glass: color-mix(in srgb, var(--bg) 80%, transparent);
   --blur: blur(32px) saturate(1.5);
   --mono: 'DM Mono', ui-monospace, monospace;
   --ease: cubic-bezier(.2,.8,.2,1);
@@ -104,7 +108,7 @@ button { font: inherit; color: inherit; }
   .top .tabs, .who-name { display: none; }
   .who { margin-left: auto; }
   .bottom-bar { display: flex; position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; height: calc(64px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom); background: rgb(var(--bg-rgb) / .9); border-top: 1px solid rgba(244,239,232,.1); }
+    padding-bottom: env(safe-area-inset-bottom); background: color-mix(in srgb, var(--bg) 90%, transparent); border-top: 1px solid rgba(244,239,232,.1); }
   .bottom-bar a { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: color .2s .1s;
     color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   .bottom-bar a .tab-icon { box-sizing: content-box; padding: 4px 18px; border-radius: 999px; }
@@ -154,7 +158,7 @@ a.card:active { transform: scale(.96); }
 .kind.tv { background: oklch(0.52 0.2 330 / .85); }
 /* "More like this": a starred title wears Seerr's star, opposite the type badge. */
 .star-tag { position: absolute; top: 8px; right: 8px; z-index: 1; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px;
-  background: rgb(var(--bg-rgb) / .7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14); }
+  background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14); }
 .star-tag svg { width: 15px; height: 15px; fill: #fcd34d; stroke: #fcd34d; stroke-width: 1.5; stroke-linejoin: round; }
 
 /* Library */
@@ -162,13 +166,13 @@ a.card:active { transform: scale(.96); }
 .card.unwatched .poster img { filter: grayscale(1) brightness(.5) contrast(1.1); }
 .card.unwatched .name, .card.removed .name { color: var(--dim); }
 .banner { position: absolute; left: -40%; right: -40%; top: 50%; transform: translateY(-50%) rotate(-32deg); padding: 9px 0; text-align: center;
-  background: rgb(var(--bg-rgb) / .78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   border-top: 1px solid rgba(255,255,255,.28); border-bottom: 1px solid rgba(255,255,255,.28);
   font: 500 11px/1 var(--mono); letter-spacing: .32em; color: #e8e4ef; }
 .card.removed .poster { background: #000; }
 .card.removed .poster img { opacity: .45; }
 .removed-tag { position: absolute; left: 10px; bottom: 10px; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px;
-  background: rgb(var(--bg-rgb) / .78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14);
+  background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.14);
   font: 500 10px/1 var(--mono); letter-spacing: .12em; color: #e8e4ef; }
 .removed-tag svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 /* Watchlist cards: a Remove button with Seerr's (filled) amber star. */
@@ -320,8 +324,8 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
    the page: Request stretches, the watchlist star sits beside it. */
 @keyframes dockIn { from { opacity: 0; } to { opacity: 1; } }
 .req-dock { position: fixed; z-index: 19; left: 0; right: 0; bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center;
-  padding: 12px 20px; background: rgb(var(--bg-rgb) / .94); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
-  box-shadow: 0 -16px 24px -8px rgb(var(--bg-rgb) / .9); border-top: 1px solid rgba(255,255,255,.08); animation: dockIn .18s ease both; }
+  padding: 12px 20px; background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  box-shadow: 0 -16px 24px -8px color-mix(in srgb, var(--bg) 90%, transparent); border-top: 1px solid rgba(255,255,255,.08); animation: dockIn .18s ease both; }
 .req-dock .btn { flex: 1; width: auto; margin: 0; }
 .req-dock .btn.req { width: auto; margin: 0; } /* beats the later .btn.req { margin-top: 22px } */
 .req-dock .btn.star-btn { flex: none; width: 54px; }
@@ -330,12 +334,12 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
 /* The path pill and its dropdown. */
 .path-wrap { position: relative; }
 .path-pill { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 13px; border-radius: 999px; cursor: pointer; color: var(--text);
-  background: rgb(var(--bg-rgb) / .55); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.12); font-size: 15px; font-weight: 600; }
+  background: color-mix(in srgb, var(--bg) 55%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,.12); font-size: 15px; font-weight: 600; }
 .path-pill.open .chev, .path-pill.on .chev { transform: rotate(180deg); } /* dropdown open / panel open */
 .ico.chev { transition: transform .25s var(--ease); }
 .path-pill.on { background: oklch(0.68 0.2 262 / .2); border-color: oklch(0.68 0.2 262 / .5); }
 .path-drop { position: absolute; top: calc(100% + 8px); right: 0; width: 300px; max-width: calc(100vw - 2 * var(--gutter)); padding: 18px 20px; border-radius: 22px;
-  background: rgba(24,22,32,.96); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 24px 50px -10px rgba(0,0,0,.7);
+  background: color-mix(in srgb, var(--surface) 96%, transparent); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 24px 50px -10px rgba(0,0,0,.7);
   animation: drop .22s var(--ease) both; }
 .path-drop .kicker, .path-panel .kicker { color: var(--muted); }
 .path-drop .plist { max-height: 310px; overflow: auto; margin-top: 10px; }
@@ -519,7 +523,7 @@ h2 { font-weight: 800; font-size: 24px; letter-spacing: -.03em; margin: 0; }
   .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
   /* The Library switcher floats just above the tab bar, in the thumb zone. */
   .segments { position: fixed; z-index: 19; left: var(--gutter); right: var(--gutter); bottom: calc(64px + 10px + env(safe-area-inset-bottom)); margin: 0;
-    background: rgba(20,23,30,.88); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); border-color: rgba(255,255,255,.1);
+    background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); border-color: rgba(255,255,255,.1);
     box-shadow: 0 8px 24px rgba(0,0,0,.45); }
   main:has(.segments) { padding-bottom: calc(170px + env(safe-area-inset-bottom)); }
   body:has(.segments) .toast { bottom: calc(136px + env(safe-area-inset-bottom)); }
