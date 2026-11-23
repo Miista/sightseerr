@@ -872,12 +872,17 @@ function requestDialog(t, o, send) {
 // sheet opens a modal: a sheet rising from the bottom on a phone, a centred
 // card on desktop. A tap on the dimmed backdrop (the dialog itself, outside
 // its content) closes it; it removes itself once closed.
+// Opening focuses the dialog itself, not its first control: iOS treats a
+// focused <select> as being edited, opening its picker and scrolling the page
+// underneath to bring it into view. Tab still reaches the controls.
 function sheet(label, ...content) {
-  const dlg = h('dialog', { class: 'dialog', 'aria-label': label }, h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }), ...content);
+  const dlg = h('dialog', { class: 'dialog', 'aria-label': label, tabindex: '-1', autofocus: true },
+    h('div', { class: 'sheet-grab', 'aria-hidden': 'true' }), ...content);
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
   dlg.addEventListener('close', () => { dlg.remove(); window.dispatchEvent(new Event('sightseerr:sheet')); });
   document.body.append(dlg);
   dlg.showModal();
+  dlg.focus({ preventScroll: true }); // Chromium ignores autofocus on the dialog itself
   window.dispatchEvent(new Event('sightseerr:sheet')); // the docked Request hides while a sheet is open
   return dlg;
 }
